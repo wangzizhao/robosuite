@@ -1,3 +1,6 @@
+*.p
+causal_intrinsic/run_python.sh
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
