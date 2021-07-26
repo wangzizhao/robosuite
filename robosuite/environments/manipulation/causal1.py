@@ -1,5 +1,6 @@
 from collections import OrderedDict
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from robosuite.utils.transform_utils import convert_quat
 from robosuite.utils.mjcf_utils import CustomMaterial
@@ -446,6 +447,11 @@ class Causal1(SingleArmEnv):
             def cubeA_quat(obs_cache):
                 return convert_quat(np.array(self.sim.data.body_xquat[self.cubeA_body_id]), to="xyzw")
 
+            @sensor(modality=modality)
+            def cubeA_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeA_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
+
             # @sensor(modality=modality)
             # def cubeB_pos(obs_cache):
             #     return np.array(self.sim.data.body_xpos[self.cubeB_body_id])
@@ -461,6 +467,11 @@ class Causal1(SingleArmEnv):
             @sensor(modality=modality)
             def cubeC_quat(obs_cache):
                 return convert_quat(np.array(self.sim.data.body_xquat[self.cubeC_body_id]), to="xyzw")
+
+            @sensor(modality=modality)
+            def cubeC_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeC_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
 
             # @sensor(modality=modality)
             # def ballA_pos(obs_cache):
@@ -510,12 +521,17 @@ class Causal1(SingleArmEnv):
             def cubeE_quat(obs_cache):
                 return convert_quat(np.array(self.sim.data.body_xquat[self.cubeE_body_id]), to="xyzw")
 
+            @sensor(modality=modality)
+            def cubeE_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeE_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
+
             # sensors = [cubeA_pos, cubeA_quat, cubeB_pos, cubeB_quat,
             #            cubeC_pos, cubeC_quat, cubeD_pos, cubeD_quat, cubeE_pos, cubeE_quat,
             #            ballA_pos, ballA_quat, ballB_pos, ballB_quat,
             #            cylinderA_pos, cylinderA_quat, cylinderB_pos, cylinderB_quat,
             #            ]
-            sensors = [cubeA_pos, cubeA_quat, cubeC_pos, cubeC_quat, cubeE_pos, cubeE_quat]
+            sensors = [cubeA_pos, cubeA_euler, cubeC_pos, cubeC_euler, cubeE_pos, cubeE_euler]
             names = [s.__name__ for s in sensors]
 
             # Create observables
