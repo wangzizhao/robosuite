@@ -544,6 +544,20 @@ class Causal1(SingleArmEnv):
 
         return observables
 
+    def _get_observations(self, force_update=False):
+        observations = super()._get_observations(force_update)
+        new_observations = OrderedDict()
+        for k, v in observations.items():
+            if k.endswith("quat"):
+                new_key = k.replace("quat", "euler")
+                if np.linalg.norm(v) == 0:
+                    new_observations[new_key] = np.zeros(3)
+                else:
+                    new_observations[new_key] = R.from_quat(v).as_euler('xyz')
+            else:
+                new_observations[k] = v
+        return new_observations
+
     def _check_success(self):
         """
         Check if blocks are stacked correctly.
