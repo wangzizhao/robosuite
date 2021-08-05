@@ -67,8 +67,6 @@ class Causal1(SingleArmEnv):
         reward_scale (None or float): Scales the normalized reward function by the amount specified.
             If None, environment reward remains unnormalized
 
-        reward_shaping (bool): if True, use dense rewards.
-
         placement_initializer (ObjectPositionSampler): if provided, will
             be used to place objects on every reset, else a UniformRandomSampler
             is used by default.
@@ -137,7 +135,6 @@ class Causal1(SingleArmEnv):
         use_camera_obs=True,
         use_object_obs=True,
         reward_scale=1.0,
-        reward_shaping=False,
         placement_initializer=None,
         has_renderer=False,
         has_offscreen_renderer=True,
@@ -161,7 +158,6 @@ class Causal1(SingleArmEnv):
 
         # reward configuration
         self.reward_scale = reward_scale
-        self.reward_shaping = reward_shaping
 
         # whether to use ground-truth object states
         self.use_object_obs = use_object_obs
@@ -193,11 +189,24 @@ class Causal1(SingleArmEnv):
             camera_depths=camera_depths,
         )
 
+    def _check_terminated(self, obs):
+        # check collision or out of workspace
+        collision = False
+        out_of_workspace = False
+
+        eef_x, eef_y, eef_z = obs["robot0_eef_pos"]
+        table_len_x, table_len_y, _ = self.table_full_size
+        table_offset_z = self.table_offset[2]
+        workspace_x = [-table_len_x / 2, table_len_x / 2]
+        workspace_y = [-table_len_y / 2, table_len_y / 2]
+        workspace_z = [table_offset_z, table_offset_z + 1]
+        out_of_workspace = (eef_x < workspace_x[0]) or (eef_x > workspace_x[1]) or \
+                           (eef_y < workspace_y[0]) or (eef_y > workspace_y[1]) or \
+                           (eef_z < workspace_z[0]) or (eef_z > workspace_z[1])
+        return collision or out_of_workspace
+
     def reward(self, action):
         return 0
-
-    def staged_rewards(self):
-        pass
 
     def _load_model(self):
         """
@@ -328,6 +337,7 @@ class Causal1(SingleArmEnv):
         self.movable_objects = [self.cubeA]
         self.unmovable_objects = [self.cubeC]
         self.random_objects = [self.cubeE]
+        self.objects = self.movable_objects + self.unmovable_objects + self.random_objects
         # Create placement initializer
         if self.placement_initializer is not None:
             self.placement_initializer.reset()
@@ -444,29 +454,22 @@ class Causal1(SingleArmEnv):
                 return np.array(self.sim.data.body_xpos[self.cubeA_body_id])
 
             @sensor(modality=modality)
-            def cubeA_quat(obs_cache):
-                return convert_quat(np.array(self.sim.data.body_xquat[self.cubeA_body_id]), to="xyzw")
-
-            @sensor(modality=modality)
             def cubeA_euler(obs_cache):
                 quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeA_body_id]), to="xyzw")
                 return R.from_quat(quat).as_euler('xyz')
 
-            # @sensor(modality=modality)
-            # def cubeB_pos(obs_cache):
-            #     return np.array(self.sim.data.body_xpos[self.cubeB_body_id])
+            @sensor(modality=modality)
+            def cubeB_pos(obs_cache):
+                return np.array(self.sim.data.body_xpos[self.cubeB_body_id])
 
-            # @sensor(modality=modality)
-            # def cubeB_quat(obs_cache):
-            #     return convert_quat(np.array(self.sim.data.body_xquat[self.cubeB_body_id]), to="xyzw")
+            @sensor(modality=modality)
+            def cubeB_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeB_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
 
             @sensor(modality=modality)
             def cubeC_pos(obs_cache):
                 return np.array(self.sim.data.body_xpos[self.cubeC_body_id])
-
-            @sensor(modality=modality)
-            def cubeC_quat(obs_cache):
-                return convert_quat(np.array(self.sim.data.body_xquat[self.cubeC_body_id]), to="xyzw")
 
             @sensor(modality=modality)
             def cubeC_euler(obs_cache):
@@ -489,37 +492,36 @@ class Causal1(SingleArmEnv):
             # def ballB_quat(obs_cache):
             #     return convert_quat(np.array(self.sim.data.body_xquat[self.ballB_body_id]), to="xyzw")
 
-            # @sensor(modality=modality)
-            # def cylinderA_pos(obs_cache):
-            #     return np.array(self.sim.data.body_xpos[self.cylinderA_body_id])
+            @sensor(modality=modality)
+            def cylinderA_pos(obs_cache):
+                return np.array(self.sim.data.body_xpos[self.cylinderA_body_id])
 
-            # @sensor(modality=modality)
-            # def cylinderA_quat(obs_cache):
-            #     return convert_quat(np.array(self.sim.data.body_xquat[self.cylinderA_body_id]), to="xyzw")
+            @sensor(modality=modality)
+            def cylinderA_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cylinderA_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
 
-            # @sensor(modality=modality)
-            # def cylinderB_pos(obs_cache):
-            #     return np.array(self.sim.data.body_xpos[self.cylinderB_body_id])
+            @sensor(modality=modality)
+            def cylinderB_pos(obs_cache):
+                return np.array(self.sim.data.body_xpos[self.cylinderB_body_id])
 
-            # @sensor(modality=modality)
-            # def cylinderB_quat(obs_cache):
-            #     return convert_quat(np.array(self.sim.data.body_xquat[self.cylinderB_body_id]), to="xyzw")
+            @sensor(modality=modality)
+            def cylinderB_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cylinderB_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
 
-            # @sensor(modality=modality)
-            # def cubeD_pos(obs_cache):
-            #     return np.array(self.sim.data.body_xpos[self.cubeD_body_id])
+            @sensor(modality=modality)
+            def cubeD_pos(obs_cache):
+                return np.array(self.sim.data.body_xpos[self.cubeD_body_id])
 
-            # @sensor(modality=modality)
-            # def cubeD_quat(obs_cache):
-            #     return convert_quat(np.array(self.sim.data.body_xquat[self.cubeD_body_id]), to="xyzw")
+            @sensor(modality=modality)
+            def cubeD_euler(obs_cache):
+                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeD_body_id]), to="xyzw")
+                return R.from_quat(quat).as_euler('xyz')
 
             @sensor(modality=modality)
             def cubeE_pos(obs_cache):
                 return np.array(self.sim.data.body_xpos[self.cubeE_body_id])
-
-            @sensor(modality=modality)
-            def cubeE_quat(obs_cache):
-                return convert_quat(np.array(self.sim.data.body_xquat[self.cubeE_body_id]), to="xyzw")
 
             @sensor(modality=modality)
             def cubeE_euler(obs_cache):
@@ -558,16 +560,6 @@ class Causal1(SingleArmEnv):
                 new_observations[k] = v
         return new_observations
 
-    def _check_success(self):
-        """
-        Check if blocks are stacked correctly.
-
-        Returns:
-            bool: True if blocks are correctly stacked
-        """
-        _, _, r_stack = self.staged_rewards()
-        return r_stack > 0
-
     def visualize(self, vis_settings):
         """
         In addition to super call, visualize gripper site proportional to the distance to the cube.
@@ -592,4 +584,8 @@ class Causal1(SingleArmEnv):
             rot_quat = np.array([np.cos(rot_angle / 2), 0, 0, np.sin(rot_angle / 2)])
             new_obj_quat = quat_multiply(rot_quat, obj_quat)
             self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(new_obj_quat)]))
-        return super().step(action)
+        obs, reward, done, info = super().step(action)
+        if self._check_terminated(obs):
+            reward = -self.reward_scale
+            done = True
+        return obs, reward, done, info
