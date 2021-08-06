@@ -189,7 +189,7 @@ class Causal1(SingleArmEnv):
             camera_depths=camera_depths,
         )
 
-    def _check_terminated(self, obs):
+    def _check_penalty(self, obs):
         # check collision or out of workspace
         collision = False
         out_of_workspace = False
@@ -585,7 +585,6 @@ class Causal1(SingleArmEnv):
             new_obj_quat = quat_multiply(rot_quat, obj_quat)
             self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(new_obj_quat)]))
         obs, reward, done, info = super().step(action)
-        if self._check_terminated(obs):
+        if self._check_penalty(obs):
             reward = -self.reward_scale
-            done = True
         return obs, reward, done, info
