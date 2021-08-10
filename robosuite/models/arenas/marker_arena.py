@@ -145,8 +145,8 @@ class MarkerArena(TableArena):
                 UniformRandomSampler(
                     name="MarkerSampler",
                     mujoco_objects=self.markers,
-                    x_range=[-0.5, 0.5],
-                    y_range=[-0.35, 0.35],
+                    x_range=[-0.35, 0.35],
+                    y_range=[-0.5, 0.5],
                     ensure_object_boundary_in_range=True,
                     ensure_valid_placement=False,
                     reference_pos=(0, 0, self.table_half_size[2]),
