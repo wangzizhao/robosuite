@@ -258,7 +258,9 @@ class Causal1(SingleArmEnv):
             tex_attrib=tex_attrib,
             mat_attrib=mat_attrib,
         )
-        unmovable_density = 1e9
+        large_numer = 1e12
+        unmovable_density = large_numer
+        unmovable_friction = (large_numer, large_numer, large_numer)
 
         self.cubeA = BoxObject(
             name="cubeA",
@@ -270,73 +272,25 @@ class Causal1(SingleArmEnv):
         )
         self.cubeB = BoxObject(
             name="cubeB",
-            density=1000,   # default
-            size_min=[0.02, 0.02, 0.02], 
-            size_max=[0.02, 0.02, 0.02], 
-            rgba=[1, 0, 0, 1],
-            material=redwood,
+            density=unmovable_density,   # unmovable
+            friction=unmovable_friction,
+            size_min=[0.02, 0.02, 0.02],
+            size_max=[0.02, 0.02, 0.02],
+            rgba=[0, 1, 0, 1],
+            material=greenwood,
         )
         self.cubeC = BoxObject(
             name="cubeC",
             density=unmovable_density,   # unmovable
-            size_min=[0.02, 0.02, 0.02],
-            size_max=[0.02, 0.02, 0.02],
-            rgba=[0, 1, 0, 1],
-            material=greenwood,
-        )
-        self.cubeD = BoxObject(
-            name="cubeD",
-            density=unmovable_density,   # unmovable
-            size_min=[0.02, 0.02, 0.02],
-            size_max=[0.02, 0.02, 0.02],
-            rgba=[0, 1, 0, 1],
-            material=greenwood,
-        )
-        self.cubeE = BoxObject(
-            name="cubeE",
-            density=unmovable_density,   # unmovable
+            friction=unmovable_friction,
             size_min=[0.02, 0.02, 0.02],
             size_max=[0.02, 0.02, 0.02],
             rgba=[0, 0, 1, 1],
             material=bluewood,
         )
-        self.ballA = BallObject(
-            name="ballA",
-            density=1000,   # default
-            size_min=[0.02],
-            size_max=[0.02],
-            rgba=[1, 0, 0, 1],
-            material=redwood,
-        )
-        self.ballB = BallObject(
-            name="ballB",
-            density=unmovable_density,   # unmovable
-            size_min=[0.02],
-            size_max=[0.02],
-            rgba=[0, 1, 0, 1],
-            material=greenwood,
-        )
-        self.cylinderA = CylinderObject(
-            name="cylinderA",
-            density=1000,   # default
-            size_min=[0.02, 0.02],
-            size_max=[0.02, 0.02],
-            rgba=[1, 0, 0, 1],
-            material=redwood,
-        )
-        self.cylinderB = CylinderObject(
-            name="cylinderB",
-            density=unmovable_density,   # unmovable
-            size_min=[0.02, 0.02],
-            size_max=[0.02, 0.02],
-            rgba=[0, 1, 0, 1],
-            material=greenwood,
-        )
-        # self.movable_objects = [self.cubeA, self.cubeB, self.ballA, self.cylinderA]
-        # self.unmovable_objects = [self.cubeC, self.cubeD, self.ballB, self.cylinderB]
         self.movable_objects = [self.cubeA]
-        self.unmovable_objects = [self.cubeC]
-        self.random_objects = [self.cubeE]
+        self.unmovable_objects = [self.cubeB]
+        self.random_objects = [self.cubeC]
         self.objects = self.movable_objects + self.unmovable_objects + self.random_objects
         # Create placement initializer
         if self.placement_initializer is not None:
@@ -350,8 +304,8 @@ class Causal1(SingleArmEnv):
                 UniformRandomSampler(
                     name="MovableObjectSampler",
                     mujoco_objects=self.movable_objects,
-                    x_range=[-0.2, 0.2],
-                    y_range=[-0.4, -0.2],
+                    x_range=[-0.2, 0.1],
+                    y_range=[-0.3, -0.1],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=False,
@@ -364,8 +318,8 @@ class Causal1(SingleArmEnv):
                 UniformRandomSampler(
                     name="UnmovableObjectSampler",
                     mujoco_objects=self.unmovable_objects,
-                    x_range=[-0.2, 0.2],
-                    y_range=[0.2, 0.4],
+                    x_range=[-0.2, 0.1],
+                    y_range=[0.1, 0.3],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=False,
@@ -406,16 +360,8 @@ class Causal1(SingleArmEnv):
 
         # Additional object references from this env
         self.cubeA_body_id = self.sim.model.body_name2id(self.cubeA.root_body)
-        # self.cubeB_body_id = self.sim.model.body_name2id(self.cubeB.root_body)
+        self.cubeB_body_id = self.sim.model.body_name2id(self.cubeB.root_body)
         self.cubeC_body_id = self.sim.model.body_name2id(self.cubeC.root_body)
-        # self.cubeD_body_id = self.sim.model.body_name2id(self.cubeD.root_body)
-        self.cubeE_body_id = self.sim.model.body_name2id(self.cubeE.root_body)
-        # self.ballA_body_id = self.sim.model.body_name2id(self.ballA.root_body)
-        # self.ballB_body_id = self.sim.model.body_name2id(self.ballB.root_body)
-        # self.cylinderA_body_id = self.sim.model.body_name2id(self.cylinderA.root_body)
-        # self.cylinderB_body_id = self.sim.model.body_name2id(self.cylinderB.root_body)
-
-        self.random_object_ids = [self.sim.model.body_name2id(obj.root_body) for obj in self.random_objects]
 
     def _reset_internal(self):
         """
@@ -476,64 +422,7 @@ class Causal1(SingleArmEnv):
                 quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeC_body_id]), to="xyzw")
                 return R.from_quat(quat).as_euler('xyz')
 
-            # @sensor(modality=modality)
-            # def ballA_pos(obs_cache):
-            #     return np.array(self.sim.data.body_xpos[self.ballA_body_id])
-
-            # @sensor(modality=modality)
-            # def ballA_quat(obs_cache):
-            #     return convert_quat(np.array(self.sim.data.body_xquat[self.ballA_body_id]), to="xyzw")
-
-            # @sensor(modality=modality)
-            # def ballB_pos(obs_cache):
-            #     return np.array(self.sim.data.body_xpos[self.ballB_body_id])
-
-            # @sensor(modality=modality)
-            # def ballB_quat(obs_cache):
-            #     return convert_quat(np.array(self.sim.data.body_xquat[self.ballB_body_id]), to="xyzw")
-
-            @sensor(modality=modality)
-            def cylinderA_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.cylinderA_body_id])
-
-            @sensor(modality=modality)
-            def cylinderA_euler(obs_cache):
-                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cylinderA_body_id]), to="xyzw")
-                return R.from_quat(quat).as_euler('xyz')
-
-            @sensor(modality=modality)
-            def cylinderB_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.cylinderB_body_id])
-
-            @sensor(modality=modality)
-            def cylinderB_euler(obs_cache):
-                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cylinderB_body_id]), to="xyzw")
-                return R.from_quat(quat).as_euler('xyz')
-
-            @sensor(modality=modality)
-            def cubeD_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.cubeD_body_id])
-
-            @sensor(modality=modality)
-            def cubeD_euler(obs_cache):
-                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeD_body_id]), to="xyzw")
-                return R.from_quat(quat).as_euler('xyz')
-
-            @sensor(modality=modality)
-            def cubeE_pos(obs_cache):
-                return np.array(self.sim.data.body_xpos[self.cubeE_body_id])
-
-            @sensor(modality=modality)
-            def cubeE_euler(obs_cache):
-                quat = convert_quat(np.array(self.sim.data.body_xquat[self.cubeE_body_id]), to="xyzw")
-                return R.from_quat(quat).as_euler('xyz')
-
-            # sensors = [cubeA_pos, cubeA_quat, cubeB_pos, cubeB_quat,
-            #            cubeC_pos, cubeC_quat, cubeD_pos, cubeD_quat, cubeE_pos, cubeE_quat,
-            #            ballA_pos, ballA_quat, ballB_pos, ballB_quat,
-            #            cylinderA_pos, cylinderA_quat, cylinderB_pos, cylinderB_quat,
-            #            ]
-            sensors = [cubeA_pos, cubeA_euler, cubeC_pos, cubeC_euler, cubeE_pos, cubeE_euler]
+            sensors = [cubeA_pos, cubeA_euler, cubeB_pos, cubeB_euler, cubeC_pos, cubeC_euler]
             names = [s.__name__ for s in sensors]
 
             # Create observables
@@ -577,13 +466,19 @@ class Causal1(SingleArmEnv):
             self._visualize_gripper_to_target(gripper=self.robots[0].gripper, target=self.cubeA)
 
     def step(self, action):
-        for obj, obj_id in zip(self.random_objects, self.random_object_ids):
+        for obj in self.random_objects:
+            obj_id = self.sim.model.body_name2id(obj.root_body)
             obj_pos = self.sim.data.body_xpos[obj_id]
             obj_quat = self.sim.data.body_xquat[obj_id]
-            rot_angle = np.pi / 180 * 1
+
+            pos_noise = np.random.normal(0, 0.002, size=2)
+            obj_pos[:2] = np.clip(obj_pos[:2] + pos_noise, (0.2, -0.1), (0.3, 0.1))
+
+            rot_angle = np.pi / 180 * np.random.normal(0, 1)
             rot_quat = np.array([np.cos(rot_angle / 2), 0, 0, np.sin(rot_angle / 2)])
-            new_obj_quat = quat_multiply(rot_quat, obj_quat)
-            self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([np.array(obj_pos), np.array(new_obj_quat)]))
+            obj_quat = quat_multiply(rot_quat, obj_quat)
+            self.sim.data.set_joint_qpos(obj.joints[0], np.concatenate([obj_pos, obj_quat]))
+
         obs, reward, done, info = super().step(action)
         if self._check_penalty(obs):
             reward = -self.reward_scale
