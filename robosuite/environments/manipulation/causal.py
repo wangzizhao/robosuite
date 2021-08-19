@@ -16,7 +16,7 @@ from robosuite.utils.observables import Observable, sensor
 from robosuite.utils.transform_utils import quat_multiply
 
 
-class Causal2(SingleArmEnv):
+class Causal(SingleArmEnv):
     """
     This class corresponds to the stacking task for a single robot arm.
 
@@ -198,12 +198,9 @@ class Causal2(SingleArmEnv):
             camera_depths=camera_depths,
         )
 
-    def _check_penalty(self, obs):
+    def reward(self, action):
         # check collision or out of workspace
-        collision = False
-        out_of_workspace = False
-
-        eef_x, eef_y, eef_z = obs["robot0_eef_pos"]
+        eef_x, eef_y, eef_z = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         table_len_x, table_len_y, _ = self.table_full_size
         table_offset_z = self.table_offset[2]
         workspace_x = [-table_len_x / 2, table_len_x / 2]
@@ -212,10 +209,8 @@ class Causal2(SingleArmEnv):
         out_of_workspace = (eef_x < workspace_x[0]) or (eef_x > workspace_x[1]) or \
                            (eef_y < workspace_y[0]) or (eef_y > workspace_y[1]) or \
                            (eef_z < workspace_z[0]) or (eef_z > workspace_z[1])
-        return collision or out_of_workspace
-
-    def reward(self, action):
-        return 0
+        reward = -self.reward_scale if out_of_workspace else 0
+        return reward
 
     def _load_model(self):
         """
@@ -435,7 +430,4 @@ class Causal2(SingleArmEnv):
 
     def step(self, action):
         self.model.mujoco_arena.step_arena(self.sim)
-        obs, reward, done, info = super().step(action)
-        if self._check_penalty(obs):
-            reward = -self.reward_scale
-        return obs, reward, done, info
+        return super().step(action)
