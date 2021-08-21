@@ -62,7 +62,7 @@ class CausalGoal(Causal):
         def goal_pos(obs_cache):
             return self.goal
 
-        observables["goal"] = Observable(name="goal", sensor=goal_pos, sampling_rate=self.control_freq)
+        observables["goal_pos"] = Observable(name="goal_pos", sensor=goal_pos, sampling_rate=self.control_freq)
 
         return observables
 
