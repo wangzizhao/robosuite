@@ -289,6 +289,13 @@ class Causal(SingleArmEnv):
         self.sensor_prefixs = [f"mov{i}" for i in range(self.num_movable_objects)] + \
                               [f"unmov{i}" for i in range(self.num_unmovable_objects)] + \
                               [f"rand{i}" for i in range(self.num_random_objects)]
+        self.movable_sensor_prefixs = [f"mov{i}" for i in range(self.num_movable_objects)]
+        # self.objects = self.movable_objects
+        # self.sensor_prefixs = [f"mov{i}" for i in range(self.num_movable_objects)]
+        # self.objects = mujoco_arena.unmovable_objects
+        # self.sensor_prefixs = [f"unmov{i}" for i in range(self.num_unmovable_objects)]
+        # self.objects = mujoco_arena.random_objects
+        # self.sensor_prefixs = [f"rand{i}" for i in range(self.num_random_objects)]
 
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
