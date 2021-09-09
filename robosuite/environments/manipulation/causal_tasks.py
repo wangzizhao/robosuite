@@ -95,11 +95,11 @@ class CausalPush(CausalGoal):
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(3.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(4.0 * dist)) * reach_mult
         reward += r_reach
 
         dist = np.linalg.norm(cube_pos - self.goal)
-        r_push = (1 - np.tanh(3.0 * dist)) * push_mult
+        r_push = (1 - np.tanh(4.0 * dist)) * push_mult
         reward += r_push
 
         reward /= (reach_mult + push_mult)
@@ -124,7 +124,7 @@ class CausalPick(CausalGoal):
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(3.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(4.0 * dist)) * reach_mult
 
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
         if grasping_cubeA:
@@ -133,7 +133,7 @@ class CausalPick(CausalGoal):
         reward += r_reach
 
         dist = np.linalg.norm(cube_pos - self.goal)
-        r_lift = (1 - np.tanh(3.0 * dist)) * lift_mult
+        r_lift = (1 - np.tanh(4.0 * dist)) * lift_mult
         reward += r_lift
 
         reward /= (reach_mult + grasp_mult + lift_mult)
