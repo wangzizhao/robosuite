@@ -12,7 +12,7 @@ from robosuite.environments.manipulation.two_arm_peg_in_hole import TwoArmPegInH
 from robosuite.environments.manipulation.two_arm_handover import TwoArmHandover
 
 from robosuite.environments.manipulation.causal import Causal
-from robosuite.environments.manipulation.causal_tasks import CausalReach, CausalPush, CausalPick
+from robosuite.environments.manipulation.causal_tasks import CausalReach, CausalPush, CausalPick, CausalGrasp
 
 from robosuite.environments import ALL_ENVIRONMENTS
 from robosuite.controllers import ALL_CONTROLLERS, load_controller_config

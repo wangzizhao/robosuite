@@ -138,3 +138,33 @@ class CausalPick(CausalGoal):
 
         reward /= (reach_mult + grasp_mult + lift_mult)
         return reward
+
+
+class CausalGrasp(CausalGoal):
+    def __init__(self, **kwargs):
+        assert "z_range" not in kwargs, "invalid set of arguments"
+        super().__init__(z_range=0, **kwargs)
+
+    def reward(self, action):
+        """
+        Un-normalized summed components if using reward shaping:
+            - Reaching: in [0, reach_mult], to encourage the arm to reach the cube
+            - Pushing: in [0, push_mult], to encourage the arm to push the cube to the goal
+        Note that the final reward is normalized.
+        """
+        reach_mult = 0.5
+        grasp_mult = 1.0
+
+        gripper_close = action[-1]
+
+        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+        dist = np.abs(gripper_site_pos - cube_pos).sum()
+
+        grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+        if grasping_cubeA:
+            reward = grasp_mult
+        else:
+            reward = (1 - np.tanh(10.0 * dist)) * (gripper_close < 0) * reach_mult
+
+        return reward
