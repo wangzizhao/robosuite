@@ -53,7 +53,7 @@ class CausalGoal(Causal):
             goal_pos[-1] -= self.table_offset[2]
             self.sim.model.body_pos[self.goal_vis_id] = goal_pos
         else:
-            self.sim.model.body_pos[self.goal_vis_id] = np.zeros([0, 0, -1])
+            self.sim.model.body_pos[self.goal_vis_id] = np.array([0, 0, -1])
 
     def reward(self, action):
         raise NotImplementedError
