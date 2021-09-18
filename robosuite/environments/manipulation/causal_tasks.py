@@ -13,6 +13,7 @@ class CausalGoal(Causal):
         self.coverage = table_coverage
         self.z_range = z_range
         self.goal_space_low = None
+        self.visualize_goal = True
         super().__init__(**kwargs)
 
     def _setup_references(self):
@@ -27,6 +28,8 @@ class CausalGoal(Causal):
         assert self.num_movable_objects > 0
         self.cube = self.movable_objects[0]
         self.cube_body_id = self.sim.model.body_name2id(self.cube.root_body)
+
+        self.goal_vis_id = self.sim.model.body_name2id(self.model.mujoco_arena.goal_vis.root_body)
 
     def _reset_internal(self):
         """
@@ -45,6 +48,12 @@ class CausalGoal(Causal):
                                              table_len_y * coverage / 2,
                                              table_offset_z + 0.02 + z_range])
         self.goal = np.random.uniform(self.goal_space_low, self.goal_space_high)
+        if self.visualize_goal:
+            goal_pos = self.goal.copy()
+            goal_pos[-1] -= self.table_offset[2]
+            self.sim.model.body_pos[self.goal_vis_id] = goal_pos
+        else:
+            self.sim.model.body_pos[self.goal_vis_id] = np.zeros([0, 0, -1])
 
     def reward(self, action):
         raise NotImplementedError
@@ -144,6 +153,7 @@ class CausalGrasp(CausalGoal):
     def __init__(self, **kwargs):
         assert "z_range" not in kwargs, "invalid set of arguments"
         super().__init__(z_range=0, **kwargs)
+        self.visualize_goal = False
 
     def reward(self, action):
         """

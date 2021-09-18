@@ -1,7 +1,7 @@
 import numpy as np
 from robosuite.models.arenas import TableArena
 from robosuite.utils.mjcf_utils import CustomMaterial, find_elements
-from robosuite.models.objects import CylinderObject, BoxObject
+from robosuite.models.objects import CylinderObject, BoxObject, BallObject
 from robosuite.utils.placement_samplers import UniformRandomSampler, SequentialCompositeSampler
 from robosuite.utils.transform_utils import quat_multiply
 
@@ -83,6 +83,24 @@ class MarkerArena(TableArena):
             tex_attrib=tex_attrib,
             mat_attrib=mat_attrib,
         )
+        redwood = CustomMaterial(
+            texture="WoodRed",
+            tex_name="redwood",
+            mat_name="redwood_mat",
+            tex_attrib=tex_attrib,
+            mat_attrib=mat_attrib,
+        )
+        self.goal_vis = BallObject(
+            name="goal",
+            size=[0.015],
+            rgba=[1, 1, 0, 1],
+            material=redwood,
+            obj_type="visual",
+            joints=None,
+        )
+        self.merge_assets(self.goal_vis)
+        table = find_elements(root=self.worldbody, tags="body", attribs={"name": "table"}, return_first=True)
+        table.append(self.goal_vis.get_obj())
 
         # Define markers on table
         for i in range(self.num_markers):
@@ -150,7 +168,7 @@ class MarkerArena(TableArena):
                     ensure_object_boundary_in_range=True,
                     ensure_valid_placement=False,
                     reference_pos=(0, 0, self.table_half_size[2]),
-                    z_offset=0.01,
+                    z_offset=1e-3,
                 )
             )
             self.placement_initializer.append_sampler(
@@ -207,6 +225,8 @@ class MarkerArena(TableArena):
             sim.model.geom_rgba[geom_id][3] = 1
             # Hide the default visualization site
             sim.model.site_rgba[site_id][3] = 0
+        goal_id = sim.model.body_name2id(self.goal_vis.root_body)
+        sim.model.body_pos[goal_id] = np.zeros(3)
 
     def step_arena(self, sim):
         """
