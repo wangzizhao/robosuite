@@ -358,8 +358,14 @@ class Causal(SingleArmEnv):
                                 to="xyzw")
             return R.from_quat(quat).as_euler('xyz')
 
-        sensors = [object_pos, object_euler]
-        names = [f"{prefix}{i}_pos", f"{prefix}{i}_euler"]
+        @sensor(modality=modality)
+        def object_grasped(obs_cache):
+            grasped = int(self._check_grasp(gripper=self.robots[0].gripper,
+                                            object_geoms=[g for g in object.contact_geoms]))
+            return grasped
+
+        sensors = [object_pos, object_euler, object_grasped]
+        names = [f"{prefix}{i}_pos", f"{prefix}{i}_euler", f"{prefix}{i}_grasped"]
 
         return sensors, names
 
