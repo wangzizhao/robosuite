@@ -444,3 +444,26 @@ class Causal(SingleArmEnv):
     def step(self, action):
         self.model.mujoco_arena.step_arena(self.sim)
         return super().step(action)
+
+    def workspace_spec(self):
+        table_len_x, table_len_y, _ = self.table_full_size
+        table_offset_z = self.table_offset[2]
+        workspace_low = np.array([-table_len_x / 2, -table_len_y / 2, table_offset_z], dtype=np.float32)
+        workspace_high = np.array([table_len_x / 2, table_len_y / 2, table_offset_z + 1.0], dtype=np.float32)
+        euler_low = -(np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
+        euler_high = (np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
+
+        workspace_spec = {"robot0_eef_pos": [workspace_low, workspace_high],
+                          "robot0_gripper_qpos": [-np.ones(2, dtype=np.float32), np.ones(2, dtype=np.float32)]}
+        for i in range(self.num_movable_objects):
+            workspace_spec["mov{}_pos".format(i)] = [workspace_low, workspace_high]
+            workspace_spec["mov{}_euler".format(i)] = [euler_low, euler_high]
+        for i in range(self.num_unmovable_objects):
+            workspace_spec["unmov{}_pos".format(i)] = [workspace_low, workspace_high]
+            workspace_spec["unmov{}_euler".format(i)] = [euler_low, euler_high]
+        for i in range(self.num_random_objects):
+            workspace_spec["rand{}_pos".format(i)] = [workspace_low, workspace_high]
+            workspace_spec["rand{}_euler".format(i)] = [euler_low, euler_high]
+        for i in range(self.num_markers):
+            workspace_spec["marker{}_pos".format(i)] = [workspace_low, workspace_high]
+        return workspace_spec
