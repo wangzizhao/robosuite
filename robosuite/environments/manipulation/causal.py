@@ -449,7 +449,7 @@ class Causal(SingleArmEnv):
         table_len_x, table_len_y, _ = self.table_full_size
         table_offset_z = self.table_offset[2]
         workspace_low = np.array([-table_len_x / 2, -table_len_y / 2, table_offset_z], dtype=np.float32)
-        workspace_high = np.array([table_len_x / 2, table_len_y / 2, table_offset_z + 1.0], dtype=np.float32)
+        workspace_high = np.array([table_len_x / 2, table_len_y / 2, table_offset_z + 0.6], dtype=np.float32)
         euler_low = -(np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
         euler_high = (np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
 
