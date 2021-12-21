@@ -18,7 +18,7 @@ class MarkerArena(TableArena):
     """
 
     def __init__(
-        self, 
+        self,
         table_full_size=(0.8, 0.8, 0.05),
         table_friction=(0.01, 0.005, 0.0001),
         table_offset=(0, 0, 0.8),
@@ -252,3 +252,17 @@ class MarkerArena(TableArena):
 
             sim.model.body_pos[body_id] = obj_pos
             sim.model.body_quat[body_id] = obj_quat
+
+        x_range = self.placement_initializer.samplers["MarkerSampler"].x_range
+        y_range = self.placement_initializer.samplers["MarkerSampler"].y_range
+        z_range = [0, 0.05]
+        for obj in self.markers:
+            body_id = sim.model.body_name2id(obj.root_body)
+            obj_pos = sim.model.body_pos[body_id]
+
+            pos_noise = np.random.normal(0, 0.01, size=3)
+            obj_pos = np.clip(obj_pos + pos_noise,
+                              (x_range[0], y_range[0], z_range[0]),
+                              (x_range[1], y_range[1], z_range[1]))
+
+            sim.model.body_pos[body_id] = obj_pos
