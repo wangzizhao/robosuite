@@ -274,8 +274,8 @@ class Causal(SingleArmEnv):
                 UniformRandomSampler(
                     name="MovableObjectSampler",
                     mujoco_objects=self.movable_objects,
-                    x_range=[-0.2, 0.1],
-                    y_range=[-0.3, -0.1],
+                    x_range=[-0.3, 0.3],
+                    y_range=[-0.4, 0.4],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=False,

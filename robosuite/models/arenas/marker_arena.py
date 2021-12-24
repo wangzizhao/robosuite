@@ -175,8 +175,8 @@ class MarkerArena(TableArena):
                 UniformRandomSampler(
                     name="UnmovableObjectSampler",
                     mujoco_objects=self.unmovable_objects,
-                    x_range=[-0.2, 0.1],
-                    y_range=[0.1, 0.3],
+                    x_range=[-0.3, 0.3],
+                    y_range=[-0.4, 0.4],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=True,
@@ -189,8 +189,8 @@ class MarkerArena(TableArena):
                 UniformRandomSampler(
                     name="RandomObjectSampler",
                     mujoco_objects=self.random_objects,
-                    x_range=[0.2, 0.3],
-                    y_range=[-0.1, 0.1],
+                    x_range=[-0.3, 0.3],
+                    y_range=[-0.4, 0.4],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=True,
