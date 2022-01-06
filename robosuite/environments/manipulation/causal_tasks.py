@@ -58,6 +58,14 @@ class CausalGoal(Causal):
     def reward(self, action):
         raise NotImplementedError
 
+    def check_success(self):
+        raise NotImplementedError
+
+    def step(self, action):
+        next_obs, reward, done, info = super().step(action)
+        info["success"] = self.check_success()
+        return next_obs, reward, done, info
+
     def _setup_observables(self):
         """
         Sets up observables to be used for this environment. Creates object-based observables if enabled
@@ -82,6 +90,11 @@ class CausalReach(CausalGoal):
         dist = np.linalg.norm(gripper_site_pos - self.goal)
         r_reach = 1 - np.tanh(10.0 * dist)
         return r_reach
+
+    def check_success(self):
+        gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+        dist = np.linalg.norm(gripper_site_pos - self.goal)
+        return dist < 0.05
 
 
 class CausalPush(CausalGoal):
@@ -113,6 +126,11 @@ class CausalPush(CausalGoal):
 
         reward /= (reach_mult + push_mult)
         return reward
+
+    def check_success(self):
+        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        dist = np.linalg.norm(cube_pos - self.goal)
+        return dist < 0.05
 
 
 class CausalPick(CausalGoal):
@@ -147,6 +165,11 @@ class CausalPick(CausalGoal):
 
         reward /= (reach_mult + grasp_mult + lift_mult)
         return reward
+
+    def check_success(self):
+        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        dist = np.linalg.norm(cube_pos - self.goal)
+        return dist < 0.05
 
 
 class CausalGrasp(CausalGoal):
