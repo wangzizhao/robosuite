@@ -5,12 +5,12 @@ from robosuite.utils.observables import Observable, sensor
 
 
 class CausalGoal(Causal):
-    def __init__(self, table_coverage=0.8, z_range=0.5, **kwargs):
+    def __init__(self, xy_range=[0.3, 0.4], z_range=0.2, **kwargs):
         """
         :param table_coverage: x y workspace ranges as a coverage factor of the table
         :param z_range: z workspace range
         """
-        self.coverage = table_coverage
+        self.xy_range = xy_range
         self.z_range = z_range
         self.goal_space_low = None
         self.visualize_goal = True
@@ -39,14 +39,14 @@ class CausalGoal(Causal):
         if self.goal_space_low is None:
             table_len_x, table_len_y, _ = self.table_full_size
             table_offset_z = self.table_offset[2]
-            coverage = self.coverage
+            x_range, y_range = self.xy_range
             z_range = self.z_range
-            self.goal_space_low = np.array([-table_len_x * coverage / 2,
-                                            -table_len_y * coverage / 2,
+            self.goal_space_low = np.array([-x_range,
+                                            -y_range,
                                             table_offset_z + 0.02])             # 0.02 is the half-size of the object
-            self.goal_space_high = np.array([table_len_x * coverage / 2,
-                                             table_len_y * coverage / 2,
-                                             table_offset_z + 0.02 + z_range])
+            self.goal_space_high = np.array([x_range,
+                                             y_range,
+                                             table_offset_z + z_range])
         self.goal = np.random.uniform(self.goal_space_low, self.goal_space_high)
         if self.visualize_goal:
             goal_pos = self.goal.copy()
@@ -100,7 +100,7 @@ class CausalReach(CausalGoal):
 class CausalPush(CausalGoal):
     def __init__(self, **kwargs):
         assert "z_range" not in kwargs, "invalid set of arguments"
-        super().__init__(z_range=0, **kwargs)
+        super().__init__(z_range=0.02, **kwargs)
 
     def reward(self, action):
         """
