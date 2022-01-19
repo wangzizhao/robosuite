@@ -87,7 +87,7 @@ class CausalGoal(Causal):
 class CausalReach(CausalGoal):
     def reward(self, action):
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        dist = np.linalg.norm(gripper_site_pos - self.goal)
+        dist = np.abs(gripper_site_pos - self.goal).sum()
         r_reach = 1 - np.tanh(10.0 * dist)
         return r_reach
 
