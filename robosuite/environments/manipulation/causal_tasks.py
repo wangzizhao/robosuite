@@ -5,7 +5,7 @@ from robosuite.utils.observables import Observable, sensor
 
 
 class CausalGoal(Causal):
-    def __init__(self, xy_range=[0.3, 0.4], z_range=0.2, **kwargs):
+    def __init__(self, xy_range=[0.3, 0.4], z_range=0.2, visualize_goal=True, **kwargs):
         """
         :param table_coverage: x y workspace ranges as a coverage factor of the table
         :param z_range: z workspace range
@@ -13,7 +13,7 @@ class CausalGoal(Causal):
         self.xy_range = xy_range
         self.z_range = z_range
         self.goal_space_low = None
-        self.visualize_goal = True
+        self.visualize_goal = visualize_goal
         super().__init__(**kwargs)
 
     def _setup_references(self):
@@ -28,6 +28,10 @@ class CausalGoal(Causal):
         assert self.num_movable_objects > 0
         self.cube = self.movable_objects[0]
         self.cube_body_id = self.sim.model.body_name2id(self.cube.root_body)
+
+        assert self.num_unmovable_objects > 0
+        self.unmov_cube = self.model.mujoco_arena.unmovable_objects[0]
+        self.unmov_cube_body_id = self.sim.model.body_name2id(self.unmov_cube.root_body)
 
         self.goal_vis_id = self.sim.model.body_name2id(self.model.mujoco_arena.goal_vis.root_body)
 
@@ -194,6 +198,69 @@ class CausalPick(CausalGoal):
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         dist = np.linalg.norm(cube_pos - self.goal)
         return dist < 0.05
+
+
+class CausalStack(CausalGoal):
+    def __init__(self, **kwargs):
+        super().__init__(visualize_goal=False, **kwargs)
+
+    def reward(self, action):
+        """
+        Un-normalized summed components if using reward shaping:
+            - Reaching: in [0, reach_mult], to encourage the arm to reach the cube
+            - Grasping: in {0, grasp_mult}, to encourage the arm to grasp the cube
+            - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
+        Note that the final reward is normalized.
+        """
+        reach_mult = 0.1
+        grasp_mult = 0.35
+        lift_mult = 1.0
+        stack_mult = 2.0
+        gripper_open = action[-1] < 0
+
+        reward = 0
+
+        xy_max_dist = 1.0
+        z_max_dist = 0.2
+        lift_height = 0.95
+
+        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        unmov_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
+        gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+
+        xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
+        z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
+        dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
+        r_reach = dist_score * reach_mult * gripper_open
+
+        grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+        if grasping_cubeA:
+            r_reach += grasp_mult
+
+        reward += r_reach
+
+        xy_dist = np.abs(unmov_pos - cube_pos)[:2].sum()
+        z_dist = np.abs(lift_height - cube_pos[-1])
+        table_height = self.table_offset[2]
+        cubeA_lifted = cube_pos[-1] > table_height + 0.05
+        r_lift = (xy_max_dist - xy_dist) * cubeA_lifted / xy_max_dist + lift_height - table_height - z_dist
+        reward += r_lift * lift_mult * grasping_cubeA
+
+        cubeA_touching_cubeB = self.check_contact(self.cube, self.unmov_cube)
+        if not grasping_cubeA and r_lift > 0 and cubeA_touching_cubeB:
+            reward += stack_mult
+
+        reward /= (reach_mult + grasp_mult + lift_mult + stack_mult)
+        return reward
+
+    def check_success(self):
+        grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+        cubeA_touching_cubeB = self.check_contact(self.cube, self.unmov_cube)
+        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        cubeA_height = cube_pos[2]
+        table_height = self.table_offset[2]
+        cubeA_lifted = cubeA_height > table_height + 0.04
+        return not grasping_cubeA and cubeA_touching_cubeB and cubeA_lifted
 
 
 class CausalGrasp(CausalGoal):
