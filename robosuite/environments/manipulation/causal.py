@@ -275,7 +275,7 @@ class Causal(SingleArmEnv):
                     name="MovableObjectSampler",
                     mujoco_objects=self.movable_objects,
                     x_range=[-0.3, 0.3],
-                    y_range=[-0.4, 0.4],
+                    y_range=[-0.3, 0.3],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=False,

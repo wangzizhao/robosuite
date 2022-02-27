@@ -163,8 +163,8 @@ class MarkerArena(TableArena):
                 UniformRandomSampler(
                     name="MarkerSampler",
                     mujoco_objects=self.markers,
-                    x_range=[-0.35, 0.35],
-                    y_range=[-0.5, 0.5],
+                    x_range=[-0.3, 0.3],
+                    y_range=[-0.3, 0.3],
                     ensure_object_boundary_in_range=True,
                     ensure_valid_placement=False,
                     reference_pos=(0, 0, self.table_half_size[2]),
@@ -176,7 +176,7 @@ class MarkerArena(TableArena):
                     name="UnmovableObjectSampler",
                     mujoco_objects=self.unmovable_objects,
                     x_range=[-0.3, 0.3],
-                    y_range=[-0.4, 0.4],
+                    y_range=[-0.3, 0.3],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=True,
@@ -190,7 +190,7 @@ class MarkerArena(TableArena):
                     name="RandomObjectSampler",
                     mujoco_objects=self.random_objects,
                     x_range=[-0.3, 0.3],
-                    y_range=[-0.4, 0.4],
+                    y_range=[-0.3, 0.3],
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=True,
@@ -255,7 +255,7 @@ class MarkerArena(TableArena):
 
         x_range = self.placement_initializer.samplers["MarkerSampler"].x_range
         y_range = self.placement_initializer.samplers["MarkerSampler"].y_range
-        z_range = [0, 0.05]
+        z_range = [0.03, 0.05]
         for obj in self.markers:
             body_id = sim.model.body_name2id(obj.root_body)
             obj_pos = sim.model.body_pos[body_id]
