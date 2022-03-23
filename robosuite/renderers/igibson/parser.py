@@ -38,7 +38,7 @@ class Parser(BaseParser):
 
             if texture_file is not None:
                 self.texture_attributes[texture_name] = texture.attrib
-                self.texture_id_mapping[texture_name] = (self.renderer.load_texture_file(texture_file), texture_type)
+                self.texture_id_mapping[texture_name] = (self.renderer.load_texture_file(texture_file, 1), texture_type)
             else:
                 color = np.array(string_to_array(texture_rgb))
                 self.texture_id_mapping[texture_name] = (color, texture_type)
@@ -136,7 +136,8 @@ class Parser(BaseParser):
             )
             robot.cameras.append(camera)
 
-        self.renderer.add_robot([], [], [], [], None, 0, dynamic=False, robot=robot)
+        #self.renderer.add_robot([], [], [], [], None, 0, dynamic=False, robot=robot)
+        self.renderer.add_instance_group([], ig_object=robot)
 
     def parse_meshes(self):
         """
@@ -154,7 +155,7 @@ class Parser(BaseParser):
         element_id = 0
         for geom_index, geom in enumerate(self.xml_root.iter("geom")):
             geom_name = geom.get("name", "NONAME")
-            geom_type = geom.get("type")
+            geom_type = geom.get("type", "sphere")
 
             if (geom.get("group") != "1" and geom_type != "plane") or ("collision" in geom_name):
                 continue
