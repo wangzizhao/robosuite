@@ -359,13 +359,20 @@ class Causal(SingleArmEnv):
             return R.from_quat(quat).as_euler('xyz')
 
         @sensor(modality=modality)
+        def object_zrot(obs_cache):
+            quat = convert_quat(np.array(self.sim.data.body_xquat[self.sim.model.body_name2id(object.root_body)]),
+                                to="xyzw")
+            z = R.from_quat(quat).as_euler('xyz')[2]
+            return np.array([np.sin(z), np.cos(z)]).astype(np.float32)
+
+        @sensor(modality=modality)
         def object_grasped(obs_cache):
             grasped = int(self._check_grasp(gripper=self.robots[0].gripper,
                                             object_geoms=[g for g in object.contact_geoms]))
             return grasped
 
-        sensors = [object_pos, object_euler, object_grasped]
-        names = [f"{prefix}{i}_pos", f"{prefix}{i}_euler", f"{prefix}{i}_grasped"]
+        sensors = [object_pos, object_euler, object_zrot, object_grasped]
+        names = [f"{prefix}{i}_pos", f"{prefix}{i}_euler", f"{prefix}{i}_zrot", f"{prefix}{i}_grasped"]
 
         return sensors, names
 
