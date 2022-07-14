@@ -3,7 +3,7 @@ from robosuite.models.arenas import TableArena
 from robosuite.utils.mjcf_utils import CustomMaterial, find_elements
 from robosuite.models.objects import CylinderObject, BoxObject, BallObject
 from robosuite.utils.placement_samplers import UniformRandomSampler, SequentialCompositeSampler
-from robosuite.utils.transform_utils import quat_multiply
+from robosuite.utils.transform_utils import quat_multiply, convert_quat
 
 
 class MarkerArena(TableArena):
@@ -241,17 +241,17 @@ class MarkerArena(TableArena):
         for obj in self.random_objects:
             body_id = sim.model.body_name2id(obj.root_body)
             obj_pos = sim.model.body_pos[body_id]
-            obj_quat = sim.model.body_quat[body_id]
+            obj_quat = convert_quat(np.array(sim.model.body_quat[body_id]), to="xyzw")
 
             pos_noise = np.random.normal(0, 0.002, size=2)
             obj_pos[:2] = np.clip(obj_pos[:2] + pos_noise, (x_range[0], y_range[0]), (x_range[1], y_range[1]))
 
-            rot_angle = np.pi / 180 * np.random.normal(0, 1)
-            rot_quat = np.array([np.cos(rot_angle / 2), 0, 0, np.sin(rot_angle / 2)])
+            rot_angle = np.pi / 180 * np.random.normal(0, 2)
+            rot_quat = np.array([0, 0, np.sin(rot_angle / 2), np.cos(rot_angle / 2)])
             obj_quat = quat_multiply(rot_quat, obj_quat)
 
             sim.model.body_pos[body_id] = obj_pos
-            sim.model.body_quat[body_id] = obj_quat
+            sim.model.body_quat[body_id] = convert_quat(obj_quat, to="wxyz")
 
         x_range = self.placement_initializer.samplers["MarkerSampler"].x_range
         y_range = self.placement_initializer.samplers["MarkerSampler"].y_range
