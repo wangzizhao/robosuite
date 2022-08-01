@@ -452,6 +452,30 @@ class Causal(SingleArmEnv):
         self.model.mujoco_arena.step_arena(self.sim)
         return super().step(action)
 
+    def obs_delta_range(self):
+        max_delta_eef_pos = 0.1 * np.ones(3)
+        max_delta_gripper_qpos = 0.02 * np.ones(2)
+        max_delta_obj_pos = 0.1 * np.ones(3)
+        max_delta_obj_zrot = 1 * np.ones(2)
+        max_delta_heavy_obj_pos = 0.05 * np.ones(3)
+        max_delta_heavy_obj_zrot = 0.2 * np.ones(2)
+        max_delta_marker_pos = 0.05 * np.ones(3)
+
+        workspace_spec = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
+                          "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos]}
+        for i in range(self.num_movable_objects):
+            workspace_spec["mov{}_pos".format(i)] = [-max_delta_obj_pos, max_delta_obj_pos]
+            workspace_spec["mov{}_zrot".format(i)] = [-max_delta_obj_zrot, max_delta_obj_zrot]
+        for i in range(self.num_unmovable_objects):
+            workspace_spec["unmov{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
+            workspace_spec["unmov{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
+        for i in range(self.num_random_objects):
+            workspace_spec["rand{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
+            workspace_spec["rand{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
+        for i in range(self.num_markers):
+            workspace_spec["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]
+        return workspace_spec
+
     def obs_range(self):
         table_len_x, table_len_y, _ = self.table_full_size
         table_offset_z = self.table_offset[2]
