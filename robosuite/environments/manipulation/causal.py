@@ -454,7 +454,9 @@ class Causal(SingleArmEnv):
 
     def obs_delta_range(self):
         max_delta_eef_pos = 0.1 * np.ones(3)
+        max_delta_joint_vel = 0.1 * np.ones(6)
         max_delta_gripper_qpos = 0.02 * np.ones(2)
+        max_delta_gripper_qvel = 0.1 * np.ones(2)
         max_delta_obj_pos = 0.1 * np.ones(3)
         max_delta_obj_zrot = 1 * np.ones(2)
         max_delta_heavy_obj_pos = 0.05 * np.ones(3)
@@ -462,7 +464,9 @@ class Causal(SingleArmEnv):
         max_delta_marker_pos = 0.05 * np.ones(3)
 
         workspace_spec = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
-                          "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos]}
+                          "robot0_joint_vel": [-max_delta_joint_vel, max_delta_joint_vel],
+                          "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
+                          "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
         for i in range(self.num_movable_objects):
             workspace_spec["mov{}_pos".format(i)] = [-max_delta_obj_pos, max_delta_obj_pos]
             workspace_spec["mov{}_zrot".format(i)] = [-max_delta_obj_zrot, max_delta_obj_zrot]
