@@ -454,62 +454,31 @@ class Causal(SingleArmEnv):
 
     def obs_delta_range(self):
         max_delta_eef_pos = 0.1 * np.ones(3)
-        max_delta_joint_vel = 0.1 * np.ones(6)
+        max_delta_joint_vel = 5 * np.ones(6)
         max_delta_gripper_qpos = 0.02 * np.ones(2)
-        max_delta_gripper_qvel = 0.1 * np.ones(2)
+        max_delta_gripper_qvel = 0.5 * np.ones(2)
         max_delta_obj_pos = 0.1 * np.ones(3)
-        max_delta_obj_zrot = 1 * np.ones(2)
+        max_delta_obj_zrot = 2 * np.ones(2)
         max_delta_heavy_obj_pos = 0.05 * np.ones(3)
         max_delta_heavy_obj_zrot = 0.2 * np.ones(2)
         max_delta_marker_pos = 0.05 * np.ones(3)
 
-        workspace_spec = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
-                          "robot0_joint_vel": [-max_delta_joint_vel, max_delta_joint_vel],
-                          "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
-                          "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
+        obs_delta_range = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
+                           "robot0_joint_vel": [-max_delta_joint_vel, max_delta_joint_vel],
+                           "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
+                           "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
         for i in range(self.num_movable_objects):
-            workspace_spec["mov{}_pos".format(i)] = [-max_delta_obj_pos, max_delta_obj_pos]
-            workspace_spec["mov{}_zrot".format(i)] = [-max_delta_obj_zrot, max_delta_obj_zrot]
+            obs_delta_range["mov{}_pos".format(i)] = [-max_delta_obj_pos, max_delta_obj_pos]
+            obs_delta_range["mov{}_zrot".format(i)] = [-max_delta_obj_zrot, max_delta_obj_zrot]
         for i in range(self.num_unmovable_objects):
-            workspace_spec["unmov{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
-            workspace_spec["unmov{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
+            obs_delta_range["unmov{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
+            obs_delta_range["unmov{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
         for i in range(self.num_random_objects):
-            workspace_spec["rand{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
-            workspace_spec["rand{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
+            obs_delta_range["rand{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
+            obs_delta_range["rand{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
         for i in range(self.num_markers):
-            workspace_spec["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]
-        return workspace_spec
-
-    def obs_range(self):
-        table_len_x, table_len_y, _ = self.table_full_size
-        table_offset_z = self.table_offset[2]
-        workspace_low = np.array([-table_len_x / 2, -table_len_y / 2, table_offset_z], dtype=np.float32)
-        workspace_high = np.array([table_len_x / 2, table_len_y / 2, table_offset_z + 0.6], dtype=np.float32)
-        euler_low = -(np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
-        euler_high = (np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
-
-        unmov_pos_low = np.array([-0.3, -0.3, 0.82])
-        unmov_pos_high = np.array([0.3, 0.3, 0.825])
-        rand_pos_low = np.array([-0.3, -0.3, 0.82])
-        rand_pos_high = np.array([0.3, 0.3, 0.825])
-
-        workspace_spec = {"robot0_eef_pos": [workspace_low, workspace_high],
-                          "robot0_gripper_qpos": [np.array([-0.03, -0.03]), np.array([0.03, 0.03])]}
-        for i in range(self.num_movable_objects):
-            workspace_spec["mov{}_pos".format(i)] = [workspace_low, workspace_high]
-            workspace_spec["mov{}_euler".format(i)] = [euler_low, euler_high]
-            workspace_spec["mov{}_zrot".format(i)] = [-np.ones(2, dtype=np.float32), np.ones(2, dtype=np.float32)]
-        for i in range(self.num_unmovable_objects):
-            workspace_spec["unmov{}_pos".format(i)] = [unmov_pos_low, unmov_pos_high]
-            workspace_spec["unmov{}_euler".format(i)] = [euler_low, euler_high]
-            workspace_spec["unmov{}_zrot".format(i)] = [-np.ones(2, dtype=np.float32), np.ones(2, dtype=np.float32)]
-        for i in range(self.num_random_objects):
-            workspace_spec["rand{}_pos".format(i)] = [rand_pos_low, rand_pos_high]
-            workspace_spec["rand{}_euler".format(i)] = [euler_low, euler_high]
-            workspace_spec["rand{}_zrot".format(i)] = [-np.ones(2, dtype=np.float32), np.ones(2, dtype=np.float32)]
-        for i in range(self.num_markers):
-            workspace_spec["marker{}_pos".format(i)] = [workspace_low, workspace_high]
-        return workspace_spec
+            obs_delta_range["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]
+        return obs_delta_range
 
     def workspace_spec(self):
         table_len_x, table_len_y, _ = self.table_full_size
