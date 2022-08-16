@@ -8,12 +8,10 @@ from robosuite.utils.mjcf_utils import CustomMaterial
 from robosuite.environments.manipulation.single_arm_env import SingleArmEnv
 
 from robosuite.models.arenas import MarkerArena
-from robosuite.models.objects import BoxObject, BallObject, CylinderObject, CapsuleObject
+from robosuite.models.objects import BoxObject
 from robosuite.models.tasks import ManipulationTask
 from robosuite.utils.placement_samplers import UniformRandomSampler, SequentialCompositeSampler
 from robosuite.utils.observables import Observable, sensor
-
-from robosuite.utils.transform_utils import quat_multiply
 
 
 class Causal(SingleArmEnv):
@@ -154,6 +152,10 @@ class Causal(SingleArmEnv):
         num_unmovable_objects=1,
         num_random_objects=1,
         num_markers=5,
+        cube_x_range=(-0.3, 0.3),
+        cube_y_range=(-0.3, 0.3),
+        marker_x_range=(-0.3, 0.3),
+        marker_y_range=(-0.3, 0.3)
     ):
         # settings for table top
         self.table_full_size = table_full_size
@@ -173,6 +175,11 @@ class Causal(SingleArmEnv):
         self.num_unmovable_objects = num_unmovable_objects
         self.num_random_objects = num_random_objects
         self.num_markers = num_markers
+
+        self.cube_x_range = cube_x_range
+        self.cube_y_range = cube_y_range
+        self.marker_x_range = marker_x_range
+        self.marker_y_range = marker_y_range
 
         super().__init__(
             robots=robots,
@@ -199,18 +206,7 @@ class Causal(SingleArmEnv):
         )
 
     def reward(self, action):
-        # check collision or out of workspace
-        eef_x, eef_y, eef_z = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        table_len_x, table_len_y, _ = self.table_full_size
-        table_offset_z = self.table_offset[2]
-        workspace_x = [-table_len_x / 2, table_len_x / 2]
-        workspace_y = [-table_len_y / 2, table_len_y / 2]
-        workspace_z = [table_offset_z, table_offset_z + 1]
-        out_of_workspace = (eef_x < workspace_x[0]) or (eef_x > workspace_x[1]) or \
-                           (eef_y < workspace_y[0]) or (eef_y > workspace_y[1]) or \
-                           (eef_z < workspace_z[0]) or (eef_z > workspace_z[1])
-        reward = -self.reward_scale if out_of_workspace else 0
-        return reward
+        return 0
 
     def _load_model(self):
         """
@@ -274,8 +270,8 @@ class Causal(SingleArmEnv):
                 UniformRandomSampler(
                     name="MovableObjectSampler",
                     mujoco_objects=self.movable_objects,
-                    x_range=[-0.3, 0.3],
-                    y_range=[-0.3, 0.3],
+                    x_range=self.cube_x_range,
+                    y_range=self.cube_x_range,
                     rotation=[-np.pi, np.pi],
                     rotation_axis='z',
                     ensure_object_boundary_in_range=False,
@@ -290,12 +286,6 @@ class Causal(SingleArmEnv):
                               [f"unmov{i}" for i in range(self.num_unmovable_objects)] + \
                               [f"rand{i}" for i in range(self.num_random_objects)]
         self.movable_sensor_prefixs = [f"mov{i}" for i in range(self.num_movable_objects)]
-        # self.objects = self.movable_objects
-        # self.sensor_prefixs = [f"mov{i}" for i in range(self.num_movable_objects)]
-        # self.objects = mujoco_arena.unmovable_objects
-        # self.sensor_prefixs = [f"unmov{i}" for i in range(self.num_unmovable_objects)]
-        # self.objects = mujoco_arena.random_objects
-        # self.sensor_prefixs = [f"rand{i}" for i in range(self.num_random_objects)]
 
         # task includes arena, robot, and objects of interest
         self.model = ManipulationTask(
@@ -312,9 +302,6 @@ class Causal(SingleArmEnv):
 
         if not self.deterministic_reset:
             self.model.mujoco_arena.reset_arena(self.sim)
-
-        # Reset all object positions using initializer sampler if we're not directly loading from an xml
-        if not self.deterministic_reset:
 
             # Sample from the placement initializer for all objects
             object_placements = self.placement_initializer.sample()
@@ -385,11 +372,15 @@ class Causal(SingleArmEnv):
         """
         observables = super()._setup_observables()
 
-        sensors = []
-        names = []
         # low-level object information
         if self.use_object_obs:
             modality = "object"
+
+            @sensor(modality=modality)
+            def robot0_eef_vel(obs_cache):
+                return self.robots[0]._hand_vel
+
+            sensors, names = [robot0_eef_vel], ["robot0_eef_vel"]
 
             for i, movable_obj in enumerate(self.movable_objects):
                 movable_sensors, movable_sensor_names = self._create_object_sensors(i, movable_obj, "mov", modality)
@@ -418,23 +409,10 @@ class Causal(SingleArmEnv):
                     name=name,
                     sensor=s,
                     sampling_rate=self.control_freq,
+                    enabled="euler" not in name
                 )
 
         return observables
-
-    def _get_observations(self, force_update=False):
-        observations = super()._get_observations(force_update)
-        new_observations = OrderedDict()
-        for k, v in observations.items():
-            if k.endswith("quat"):
-                new_key = k.replace("quat", "euler")
-                if np.linalg.norm(v) == 0:
-                    new_observations[new_key] = np.zeros(3)
-                else:
-                    new_observations[new_key] = R.from_quat(v).as_euler('xyz')
-            else:
-                new_observations[k] = v
-        return new_observations
 
     def visualize(self, vis_settings):
         """
@@ -454,6 +432,7 @@ class Causal(SingleArmEnv):
 
     def obs_delta_range(self):
         max_delta_eef_pos = 0.1 * np.ones(3)
+        max_delta_eef_vel = 0.1 * np.ones(3)
         max_delta_joint_vel = 5 * np.ones(6)
         max_delta_gripper_qpos = 0.02 * np.ones(2)
         max_delta_gripper_qvel = 0.5 * np.ones(2)
@@ -464,6 +443,7 @@ class Causal(SingleArmEnv):
         max_delta_marker_pos = 0.05 * np.ones(3)
 
         obs_delta_range = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
+                           "robot0_eef_vel": [-max_delta_eef_vel, max_delta_eef_vel],
                            "robot0_joint_vel": [-max_delta_joint_vel, max_delta_joint_vel],
                            "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
                            "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
@@ -479,26 +459,3 @@ class Causal(SingleArmEnv):
         for i in range(self.num_markers):
             obs_delta_range["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]
         return obs_delta_range
-
-    def workspace_spec(self):
-        table_len_x, table_len_y, _ = self.table_full_size
-        table_offset_z = self.table_offset[2]
-        workspace_low = np.array([-table_len_x / 2, -table_len_y / 2, table_offset_z], dtype=np.float32)
-        workspace_high = np.array([table_len_x / 2, table_len_y / 2, table_offset_z + 0.3], dtype=np.float32)
-        euler_low = -(np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
-        euler_high = (np.array([1, 0.5, 1]) * np.pi).astype(np.float32)
-
-        workspace_spec = {"robot0_eef_pos": [workspace_low, workspace_high],
-                          "robot0_gripper_qpos": [-np.ones(2, dtype=np.float32), np.ones(2, dtype=np.float32)]}
-        for i in range(self.num_movable_objects):
-            workspace_spec["mov{}_pos".format(i)] = [workspace_low, workspace_high]
-            workspace_spec["mov{}_euler".format(i)] = [euler_low, euler_high]
-        for i in range(self.num_unmovable_objects):
-            workspace_spec["unmov{}_pos".format(i)] = [workspace_low, workspace_high]
-            workspace_spec["unmov{}_euler".format(i)] = [euler_low, euler_high]
-        for i in range(self.num_random_objects):
-            workspace_spec["rand{}_pos".format(i)] = [workspace_low, workspace_high]
-            workspace_spec["rand{}_euler".format(i)] = [euler_low, euler_high]
-        for i in range(self.num_markers):
-            workspace_spec["marker{}_pos".format(i)] = [workspace_low, workspace_high]
-        return workspace_spec
