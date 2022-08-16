@@ -432,7 +432,7 @@ class Causal(SingleArmEnv):
 
     def obs_delta_range(self):
         max_delta_eef_pos = 0.1 * np.ones(3)
-        max_delta_eef_vel = 0.1 * np.ones(3)
+        max_delta_eef_vel = 2 * np.ones(3)
         max_delta_joint_vel = 5 * np.ones(6)
         max_delta_gripper_qpos = 0.02 * np.ones(2)
         max_delta_gripper_qvel = 0.5 * np.ones(2)
