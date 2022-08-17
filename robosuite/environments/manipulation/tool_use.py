@@ -9,8 +9,7 @@ from robosuite.models.objects import BoxObject
 from robosuite.models.tasks import ManipulationTask
 from robosuite.utils.placement_samplers import UniformRandomSampler, SequentialCompositeSampler
 from robosuite.utils.observables import Observable, sensor
-from robosuite.utils.mjcf_utils import CustomMaterial, array_to_string, find_elements, add_material
-from robosuite.utils.buffers import RingBuffer
+from robosuite.utils.mjcf_utils import CustomMaterial, array_to_string
 from robosuite.utils.transform_utils import convert_quat
 
 from robosuite.models.tool_use import LShapeTool, PotObject
@@ -24,6 +23,7 @@ class ToolUse(SingleArmEnv):
         gripper_types="default",
         initialization_noise="default",
         table_full_size=(0.8, 1.2, 0.05),
+        table_offset=(0.0, 0.0, 0.8),
         table_friction=(1., 5e-3, 1e-4),
         use_camera_obs=True,
         use_object_obs=True,
@@ -55,7 +55,7 @@ class ToolUse(SingleArmEnv):
         # settings for table top (hardcoded since it's not an essential part of the environment)
         self.table_full_size = table_full_size
         self.table_friction = table_friction
-        self.table_offset = (0.2, 0, 0.80)
+        self.table_offset = np.array(table_offset)
 
         # reward configuration
         self.reward_scale = reward_scale
@@ -170,7 +170,7 @@ class ToolUse(SingleArmEnv):
 
         # Arena always gets set to zero origin
         mujoco_arena.set_origin([0, 0, 0])
-        
+
         bluewood = CustomMaterial(
             texture="WoodBlue",
             tex_name="bluewood",
@@ -196,13 +196,13 @@ class ToolUse(SingleArmEnv):
             name="pot",
         )
         pot_object = self.pot_object.get_obj()
-        pot_object.set("pos", array_to_string((0.0, 0.18, self.table_offset[2] + 0.05)))
+        pot_object.set("pos", array_to_string((0.0, 0.2, self.table_offset[2] + 0.03)))
 
         self.placement_initializer = SequentialCompositeSampler(name="ObjectSampler")
         
         # Create placement initializer
         self.placement_initializer.append_sampler(
-        sampler = UniformRandomSampler(
+        sampler=UniformRandomSampler(
             name="ObjectSampler-cube",
             mujoco_objects=self.cube,
             x_range=self.cube_x_range,
@@ -216,7 +216,7 @@ class ToolUse(SingleArmEnv):
         ))
 
         self.placement_initializer.append_sampler(
-        sampler = UniformRandomSampler(
+        sampler=UniformRandomSampler(
             name="ObjectSampler-lshape",
             mujoco_objects=self.lshape_tool,
             x_range=self.tool_x_range,

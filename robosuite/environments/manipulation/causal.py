@@ -129,6 +129,7 @@ class Causal(SingleArmEnv):
         gripper_types="default",
         initialization_noise="default",
         table_full_size=(0.8, 1.2, 0.05),
+        table_offset=(0.0, 0.0, 0.8),
         table_friction=(1., 5e-3, 1e-4),
         use_camera_obs=True,
         use_object_obs=True,
@@ -160,7 +161,7 @@ class Causal(SingleArmEnv):
         # settings for table top
         self.table_full_size = table_full_size
         self.table_friction = table_friction
-        self.table_offset = np.array((0, 0, 0.8))
+        self.table_offset = np.array(table_offset)
 
         # reward configuration
         self.reward_scale = reward_scale
