@@ -286,6 +286,11 @@ class ToolUse(SingleArmEnv):
                 sensors += obj_sensors
                 names += obj_sensor_names
 
+            for i, marker in enumerate(self.model.mujoco_arena.markers):
+                marker_sensors, marker_sensor_names = self._create_marker_sensors(i, marker, modality)
+                sensors += marker_sensors
+                names += marker_sensor_names
+
             # Create observables
             for name, s in zip(names, sensors):
                 observables[name] = Observable(
@@ -295,6 +300,30 @@ class ToolUse(SingleArmEnv):
                 )
                 
         return observables
+
+    def _create_marker_sensors(self, i, marker, modality="object"):
+        """
+        Helper function to create sensors for a given marker. This is abstracted in a separate function call so that we
+        don't have local function naming collisions during the _setup_observables() call.
+
+        Args:
+            i (int): ID number corresponding to the marker
+            marker (MujocoObject): Marker to create sensors for
+            modality (str): Modality to assign to all sensors
+
+        Returns:
+            2-tuple:
+                sensors (list): Array of sensors for the given marker
+                names (list): array of corresponding observable names
+        """
+        @sensor(modality=modality)
+        def marker_pos(obs_cache):
+            return np.array(self.sim.data.body_xpos[self.sim.model.body_name2id(marker.root_body)])
+
+        sensors = [marker_pos]
+        names = [f"marker{i}_pos"]
+
+        return sensors, names
 
     def _create_obj_sensors(self, obj_name, modality="object"):
         """
