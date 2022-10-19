@@ -341,6 +341,12 @@ class Causal(SingleArmEnv):
             return np.array(self.sim.data.body_xpos[self.sim.model.body_name2id(object.root_body)])
 
         @sensor(modality=modality)
+        def object_quat(obs_cache):
+            quat = convert_quat(np.array(self.sim.data.body_xquat[self.sim.model.body_name2id(object.root_body)]),
+                                to="xyzw")
+            return quat
+
+        @sensor(modality=modality)
         def object_euler(obs_cache):
             quat = convert_quat(np.array(self.sim.data.body_xquat[self.sim.model.body_name2id(object.root_body)]),
                                 to="xyzw")
@@ -359,8 +365,9 @@ class Causal(SingleArmEnv):
                                             object_geoms=[g for g in object.contact_geoms]))
             return grasped
 
-        sensors = [object_pos, object_euler, object_zrot, object_grasped]
-        names = [f"{prefix}{i}_pos", f"{prefix}{i}_euler", f"{prefix}{i}_zrot", f"{prefix}{i}_grasped"]
+        sensors = [object_pos, object_quat, object_euler, object_zrot, object_grasped]
+        names = [f"{prefix}{i}_pos", f"{prefix}{i}_quat", f"{prefix}{i}_euler",
+                 f"{prefix}{i}_zrot", f"{prefix}{i}_grasped"]
 
         return sensors, names
 
@@ -438,8 +445,10 @@ class Causal(SingleArmEnv):
         max_delta_gripper_qpos = 0.02 * np.ones(2)
         max_delta_gripper_qvel = 0.5 * np.ones(2)
         max_delta_obj_pos = 0.1 * np.ones(3)
+        max_delta_obj_quat = 2 * np.ones(4)
         max_delta_obj_zrot = 2 * np.ones(2)
         max_delta_heavy_obj_pos = 0.05 * np.ones(3)
+        max_delta_heavy_obj_quat = 0.2 * np.ones(4)
         max_delta_heavy_obj_zrot = 0.2 * np.ones(2)
         max_delta_marker_pos = 0.05 * np.ones(3)
 
@@ -450,12 +459,15 @@ class Causal(SingleArmEnv):
                            "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
         for i in range(self.num_movable_objects):
             obs_delta_range["mov{}_pos".format(i)] = [-max_delta_obj_pos, max_delta_obj_pos]
+            obs_delta_range["mov{}_quat".format(i)] = [-max_delta_obj_quat, max_delta_obj_quat]
             obs_delta_range["mov{}_zrot".format(i)] = [-max_delta_obj_zrot, max_delta_obj_zrot]
         for i in range(self.num_unmovable_objects):
             obs_delta_range["unmov{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
+            obs_delta_range["unmov{}_quat".format(i)] = [-max_delta_heavy_obj_quat, max_delta_heavy_obj_quat]
             obs_delta_range["unmov{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
         for i in range(self.num_random_objects):
             obs_delta_range["rand{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
+            obs_delta_range["rand{}_quat".format(i)] = [-max_delta_heavy_obj_quat, max_delta_heavy_obj_quat]
             obs_delta_range["rand{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
         for i in range(self.num_markers):
             obs_delta_range["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]

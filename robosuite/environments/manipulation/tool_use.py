@@ -361,7 +361,7 @@ class ToolUse(SingleArmEnv):
             return grasped
 
         sensors = [obj_pos, obj_quat, object_zrot, object_grasped]
-        names = [f"{obj_name}_pos", f"{obj_name}_euler", f"{obj_name}_zrot", f"{obj_name}_grasped"]
+        names = [f"{obj_name}_pos", f"{obj_name}_quat", f"{obj_name}_zrot", f"{obj_name}_grasped"]
 
         return sensors, names
 
@@ -420,10 +420,13 @@ class ToolUse(SingleArmEnv):
         max_delta_gripper_qpos = 0.02 * np.ones(2)
         max_delta_gripper_qvel = 0.5 * np.ones(2)
         max_delta_cube_pos = 0.1 * np.ones(3)
+        max_delta_cube_quat = 2 * np.ones(4)
         max_delta_cube_zrot = 2 * np.ones(2)
         max_delta_tool_pos = 0.1 * np.ones(3)
+        max_delta_tool_quat = 2 * np.ones(4)
         max_delta_tool_zrot = 2 * np.ones(2)
         max_delta_pot_pos = 0.05 * np.ones(3)
+        max_delta_pot_quat = 2 * np.ones(4)
         max_delta_pot_zrot = 0.2 * np.ones(2)
         max_delta_marker_pos = 0.05 * np.ones(3)
 
@@ -433,10 +436,13 @@ class ToolUse(SingleArmEnv):
                            "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
                            "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel],
                            "cube_pos": [-max_delta_cube_pos, max_delta_cube_pos],
+                           "cube_quat": [-max_delta_cube_quat, max_delta_cube_quat],
                            "cube_zrot": [-max_delta_cube_zrot, max_delta_cube_zrot],
                            "tool_pos": [-max_delta_tool_pos, max_delta_tool_pos],
+                           "tool_quat": [-max_delta_tool_quat, max_delta_tool_quat],
                            "tool_zrot": [-max_delta_tool_zrot, max_delta_tool_zrot],
                            "pot_pos": [-max_delta_pot_pos, max_delta_pot_pos],
+                           "pot_quat": [-max_delta_pot_quat, max_delta_pot_quat],
                            "pot_zrot": [-max_delta_pot_zrot, max_delta_pot_zrot]}
         for i in range(self.num_markers):
             obs_delta_range["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]
