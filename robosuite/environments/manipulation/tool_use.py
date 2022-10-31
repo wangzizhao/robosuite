@@ -179,7 +179,7 @@ class ToolUse(SingleArmEnv):
             mat_attrib={"texrepeat": "1 1", "specular": "0.4", "shininess": "0.1"},
         )
 
-        ingredient_size = [0.02, 0.025, 0.02]
+        ingredient_size = [0.02, 0.02, 0.02]
         self.cube = BoxObject(
             name="cube",
             size_min=ingredient_size,

@@ -13,7 +13,7 @@ class PotObject(CompositeObject):
             side_half_thickness=0.0075,
             handle_half_height=0.01,
             handle_half_length=0.04,
-            density=100,
+            density=1000,
             use_texture=True):
 
         self._name = name

@@ -8,7 +8,7 @@ class LShapeTool(CompositeObject):
     def __init__(
             self,
             name,
-            density=100,
+            density=1000,
             use_texture=True):
 
         self._name = name
