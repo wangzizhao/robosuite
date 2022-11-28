@@ -5,7 +5,7 @@ from robosuite.utils.observables import Observable, sensor
 
 
 class CausalGoal(Causal):
-    def __init__(self, xy_range=[0.3, 0.4], z_range=0.2, visualize_goal=True, **kwargs):
+    def __init__(self, xy_range=[0.25, 0.3], z_range=0.2, visualize_goal=True, **kwargs):
         """
         :param table_coverage: x y workspace ranges as a coverage factor of the table
         :param z_range: z workspace range
@@ -47,7 +47,7 @@ class CausalGoal(Causal):
             z_range = self.z_range
             self.goal_space_low = np.array([-x_range,
                                             -y_range,
-                                            table_offset_z + 0.02])             # 0.02 is the half-size of the object
+                                            table_offset_z + 0.01])             # 0.02 is the half-size of the object
             self.goal_space_high = np.array([x_range,
                                              y_range,
                                              table_offset_z + z_range])
@@ -65,10 +65,22 @@ class CausalGoal(Causal):
     def check_success(self):
         raise NotImplementedError
 
+    def reset(self):
+        obs = super().reset()
+        obs["remain_t"] = np.array([1.])
+        return obs
+
+    def observation_spec(self):
+        obs_spec = super().observation_spec()
+        obs_spec["remain_t"] = np.array([0])
+        return obs_spec
+
     def step(self, action):
         next_obs, reward, done, info = super().step(action)
-        info["success"] = self.check_success()
-        return next_obs, reward, done, info
+        success = info["success"] = self.check_success()
+        next_obs["remain_t"] = np.array([1 - float(self.timestep) / self.horizon])
+        # done = done or success
+        return next_obs, float(reward), bool(done), info
 
     def _setup_observables(self):
         """
@@ -92,7 +104,7 @@ class CausalReach(CausalGoal):
     def reward(self, action):
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.abs(gripper_site_pos - self.goal).sum()
-        r_reach = 1 - np.tanh(10.0 * dist)
+        r_reach = 1 - np.tanh(5.0 * dist)
         return r_reach
 
     def check_success(self):
@@ -153,45 +165,45 @@ class CausalPick(CausalGoal):
 
         reward = 0
 
-        # cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-        # gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        # dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        # r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult * gripper_open
-        #
-        # grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
-        # if grasping_cubeA:
-        #     r_reach += grasp_mult
-        #
-        # reward += r_reach
-        #
-        # dist = np.linalg.norm(cube_pos - self.goal)
-        # r_lift = (1 - np.tanh(5.0 * dist)) * lift_mult * (not gripper_open)
-        # reward += r_lift
-        #
-        # reward /= (reach_mult + grasp_mult + lift_mult)
-
-        max_dist = 1.1
-        xy_max_dist = 1.0
-        z_max_dist = 0.2
-
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
-        z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
-        dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
-        r_reach = dist_score * reach_mult * gripper_open
-
+        dist = np.linalg.norm(gripper_site_pos - cube_pos)
+        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult * gripper_open
+        
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
         if grasping_cubeA:
             r_reach += grasp_mult
-
+        
         reward += r_reach
-
-        dist = np.abs(self.goal - cube_pos).sum()
-        r_lift = (max_dist - dist) / max_dist * lift_mult * grasping_cubeA
+        
+        dist = np.linalg.norm(cube_pos - self.goal)
+        r_lift = (1 - np.tanh(5.0 * dist)) * lift_mult * (not gripper_open)
         reward += r_lift
-
+        
         reward /= (reach_mult + grasp_mult + lift_mult)
+
+        # max_dist = 1.1
+        # xy_max_dist = 1.0
+        # z_max_dist = 0.2
+
+        # cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        # gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+        # xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
+        # z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
+        # dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
+        # r_reach = dist_score * reach_mult * gripper_open
+
+        # grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+        # if grasping_cubeA:
+        #     r_reach += grasp_mult
+
+        # reward += r_reach
+
+        # dist = np.abs(self.goal - cube_pos).sum()
+        # r_lift = (max_dist - dist) / max_dist * lift_mult * grasping_cubeA
+        # reward += r_lift
+
+        # reward /= (reach_mult + grasp_mult + lift_mult)
         return reward
 
     def check_success(self):
@@ -220,37 +232,68 @@ class CausalStack(CausalGoal):
 
         reward = 0
 
-        xy_max_dist = 1.0
-        z_max_dist = 0.2
-        lift_height = 0.95
+        # xy_max_dist = 1.0
+        # z_max_dist = 0.2
+        # lift_height = 0.95
 
-        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-        unmov_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
+        # cube_pos = self.sim.data.body_xpos[self.cube_body_id]
+        # unmov_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
+        # gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+
+        # xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
+        # z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
+        # dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
+        # r_reach = dist_score * reach_mult * gripper_open
+
+        # grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+        # if grasping_cubeA:
+        #     r_reach += grasp_mult
+
+        # reward += r_reach
+
+        # xy_dist = np.abs(unmov_pos - cube_pos)[:2].sum()
+        # z_dist = np.abs(lift_height - cube_pos[-1])
+        # table_height = self.table_offset[2]
+        # cubeA_lifted = cube_pos[-1] > table_height + 0.05
+        # r_lift = (xy_max_dist - xy_dist) * cubeA_lifted / xy_max_dist + lift_height - table_height - z_dist
+        # reward += r_lift * lift_mult * grasping_cubeA
+
+        # cubeA_touching_cubeB = self.check_contact(self.cube, self.unmov_cube)
+        # if not grasping_cubeA and r_lift > 0 and cubeA_touching_cubeB:
+        #     reward += stack_mult
+
+        # reward /= (reach_mult + grasp_mult + lift_mult + stack_mult)
+
+        cubeA_pos = self.sim.data.body_xpos[self.cube_body_id]
+        cubeB_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+        dist = np.linalg.norm(gripper_site_pos - cubeA_pos)
+        r_reach = (1 - np.tanh(10.0 * dist)) * reach_mult
 
-        xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
-        z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
-        dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
-        r_reach = dist_score * reach_mult * gripper_open
-
+        # grasping reward
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
         if grasping_cubeA:
             r_reach += grasp_mult
 
-        reward += r_reach
-
-        xy_dist = np.abs(unmov_pos - cube_pos)[:2].sum()
-        z_dist = np.abs(lift_height - cube_pos[-1])
+        # lifting is successful when the cube is above the table top by a margin
+        cubeA_height = cubeA_pos[2]
         table_height = self.table_offset[2]
-        cubeA_lifted = cube_pos[-1] > table_height + 0.05
-        r_lift = (xy_max_dist - xy_dist) * cubeA_lifted / xy_max_dist + lift_height - table_height - z_dist
-        reward += r_lift * lift_mult * grasping_cubeA
+        cubeA_lifted = cubeA_height > table_height + 0.04
+        r_lift = lift_mult if cubeA_lifted else 0.0
 
+        # Aligning is successful when cubeA is right above cubeB
+        if cubeA_lifted:
+            horiz_dist = np.linalg.norm(np.array(cubeA_pos[:2]) - np.array(cubeB_pos[:2]))
+            r_lift += lift_mult * (1 - np.tanh(horiz_dist))
+
+        # stacking is successful when the block is lifted and the gripper is not holding the object
+        r_stack = 0
         cubeA_touching_cubeB = self.check_contact(self.cube, self.unmov_cube)
         if not grasping_cubeA and r_lift > 0 and cubeA_touching_cubeB:
-            reward += stack_mult
+            r_stack = stack_mult
 
-        reward /= (reach_mult + grasp_mult + lift_mult + stack_mult)
+        reward = (r_reach + r_lift + r_stack) / (reach_mult + grasp_mult + 2 * lift_mult + stack_mult)
+
         return reward
 
     def check_success(self):
