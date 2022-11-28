@@ -156,7 +156,8 @@ class Causal(SingleArmEnv):
         cube_x_range=(-0.3, 0.3),
         cube_y_range=(-0.3, 0.3),
         marker_x_range=(-0.3, 0.3),
-        marker_y_range=(-0.3, 0.3)
+        marker_y_range=(-0.3, 0.3),
+        global_range=((-0.5, -0.5, 0.7), (0.5, 0.5, 1.1))
     ):
         # settings for table top
         self.table_full_size = table_full_size
@@ -181,6 +182,31 @@ class Causal(SingleArmEnv):
         self.cube_y_range = cube_y_range
         self.marker_x_range = marker_x_range
         self.marker_y_range = marker_y_range
+
+        # global position range for normalization
+        global_low, global_high = global_range
+        self.global_low = np.array(global_low)
+        self.global_high = np.array(global_high)
+        self.global_mean = (self.global_high + self.global_low) / 2
+        self.global_scale = (self.global_high - self.global_low) / 2
+
+        # eef velocity range for normalization
+        self.eef_vel_low = np.array([-2, -2, -2])
+        self.eef_vel_high = np.array([2, 2, 2])
+        self.eef_vel_mean = (self.eef_vel_high + self.eef_vel_low) / 2
+        self.eef_vel_scale = (self.eef_vel_high - self.eef_vel_low) / 2
+
+        # gripper angle range for normalization
+        self.gripper_qpos_low = np.array([-0.03, -0.03])
+        self.gripper_qpos_high = np.array([0.03, 0.03])
+        self.gripper_qpos_mean = (self.gripper_qpos_high + self.gripper_qpos_low) / 2
+        self.gripper_qpos_scale = (self.gripper_qpos_high - self.gripper_qpos_low) / 2
+
+        # gripper angular velocity range for normalization
+        self.gripper_qvel_low = np.array([-0.5, -0.5])
+        self.gripper_qvel_high = np.array([0.5, 0.5])
+        self.gripper_qvel_mean = (self.gripper_qvel_high + self.gripper_qvel_low) / 2
+        self.gripper_qvel_scale = (self.gripper_qvel_high - self.gripper_qvel_low) / 2
 
         super().__init__(
             robots=robots,
@@ -434,27 +460,58 @@ class Causal(SingleArmEnv):
         # Run superclass method first
         super().visualize(vis_settings=vis_settings)
 
+    def normalize_obs(self, obs):
+        for k, v in obs.items():
+            if k in ["robot0_eef_pos", "goal"] or (k.startswith(("mov", "unmov", "rand", "marker")) and k.endswith("pos")):
+                if not ((v >= self.global_low) & (v <= self.global_high)).all():
+                    print(k, "out of range", v, self.global_low, self.global_high)
+                    exit()
+                obs[k] = (v - self.global_mean) / self.global_scale
+            elif k == "robot0_eef_vel":
+                if not ((v >= self.eef_vel_low) & (v <= self.eef_vel_high)).all():
+                    print(k, "out of range", v)
+                    exit()
+                obs[k] = (v - self.eef_vel_mean) / self.eef_vel_scale
+            elif k == "robot0_gripper_qpos":
+                if not ((v >= self.gripper_qpos_low) & (v <= self.gripper_qpos_high)).all():
+                    print(k, "out of range", v)
+                    exit()
+                obs[k] = (v - self.gripper_qpos_mean) / self.gripper_qpos_scale
+            elif k == "robot0_gripper_qvel":
+                if not ((v >= self.gripper_qvel_low) & (v <= self.gripper_qvel_high)).all():
+                    print(k, "out of range", v)
+                    exit()
+                obs[k] = (v - self.gripper_qvel_mean) / self.gripper_qvel_scale
+        return obs
+
+    def reset(self):
+        obs = super().reset()
+        obs = self.normalize_obs(obs)
+        return obs
+
     def step(self, action):
         self.model.mujoco_arena.step_arena(self.sim)
-        return super().step(action)
+        next_obs, reward, done, info = super().step(action)
+        next_obs = self.normalize_obs(next_obs)
+
+        info["success"] = False
+        return next_obs, reward, done, info
 
     def obs_delta_range(self):
-        max_delta_eef_pos = 0.1 * np.ones(3)
-        max_delta_eef_vel = 2 * np.ones(3)
-        max_delta_joint_vel = 5 * np.ones(6)
-        max_delta_gripper_qpos = 0.02 * np.ones(2)
-        max_delta_gripper_qvel = 0.5 * np.ones(2)
-        max_delta_obj_pos = 0.1 * np.ones(3)
+        max_delta_eef_pos = 0.1 * np.ones(3) / (2 * self.global_scale)
+        max_delta_eef_vel = 2 * np.ones(3) / (2 * self.eef_vel_scale)
+        max_delta_gripper_qpos = 0.02 * np.ones(2) / (2 * self.gripper_qpos_scale)
+        max_delta_gripper_qvel = 0.5 * np.ones(2) / (2 * self.gripper_qvel_scale)
+        max_delta_obj_pos = 0.1 * np.ones(3) / (2 * self.global_scale)
         max_delta_obj_quat = 2 * np.ones(4)
         max_delta_obj_zrot = 2 * np.ones(2)
-        max_delta_heavy_obj_pos = 0.05 * np.ones(3)
+        max_delta_heavy_obj_pos = 0.05 * np.ones(3) / (2 * self.global_scale)
         max_delta_heavy_obj_quat = 0.2 * np.ones(4)
         max_delta_heavy_obj_zrot = 0.2 * np.ones(2)
-        max_delta_marker_pos = 0.05 * np.ones(3)
+        max_delta_marker_pos = 0.05 * np.ones(3) / (2 * self.global_scale)
 
         obs_delta_range = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
                            "robot0_eef_vel": [-max_delta_eef_vel, max_delta_eef_vel],
-                           "robot0_joint_vel": [-max_delta_joint_vel, max_delta_joint_vel],
                            "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
                            "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
         for i in range(self.num_movable_objects):
