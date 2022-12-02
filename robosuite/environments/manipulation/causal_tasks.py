@@ -168,18 +168,18 @@ class CausalPick(CausalGoal):
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult * gripper_open
-        
+        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
+
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
         if grasping_cubeA:
             r_reach += grasp_mult
-        
+
         reward += r_reach
-        
+
         dist = np.linalg.norm(cube_pos - self.goal)
-        r_lift = (1 - np.tanh(5.0 * dist)) * lift_mult * (not gripper_open)
+        r_lift = (1 - np.tanh(5.0 * dist)) * lift_mult
         reward += r_lift
-        
+
         reward /= (reach_mult + grasp_mult + lift_mult)
 
         # max_dist = 1.1
@@ -268,7 +268,7 @@ class CausalStack(CausalGoal):
         cubeB_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cubeA_pos)
-        r_reach = (1 - np.tanh(10.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
 
         # grasping reward
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
@@ -284,7 +284,7 @@ class CausalStack(CausalGoal):
         # Aligning is successful when cubeA is right above cubeB
         if cubeA_lifted:
             horiz_dist = np.linalg.norm(np.array(cubeA_pos[:2]) - np.array(cubeB_pos[:2]))
-            r_lift += lift_mult * (1 - np.tanh(horiz_dist))
+            r_lift += lift_mult * (1 - np.tanh(5.0 * horiz_dist))
 
         # stacking is successful when the block is lifted and the gripper is not holding the object
         r_stack = 0
