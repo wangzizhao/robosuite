@@ -388,12 +388,16 @@ class Causal(SingleArmEnv):
         @sensor(modality=modality)
         def object_grasped(obs_cache):
             grasped = int(self._check_grasp(gripper=self.robots[0].gripper,
-                                            object_geoms=[g for g in object.contact_geoms]))
+                                            object_geoms=object))
             return grasped
 
-        sensors = [object_pos, object_quat, object_euler, object_zrot, object_grasped]
-        names = [f"{prefix}{i}_pos", f"{prefix}{i}_quat", f"{prefix}{i}_euler",
-                 f"{prefix}{i}_zrot", f"{prefix}{i}_grasped"]
+        @sensor(modality=modality)
+        def object_touched(obs_cache):
+            touched = int(self.check_contact(self.robots[0].gripper, object))
+            return touched
+
+        sensors = [object_pos, object_quat, object_grasped, object_touched]
+        names = [f"{prefix}{i}_pos", f"{prefix}{i}_quat", f"{prefix}{i}_grasped", f"{prefix}{i}_touched"]
 
         return sensors, names
 
