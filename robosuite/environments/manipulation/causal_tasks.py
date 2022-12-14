@@ -181,29 +181,6 @@ class CausalPick(CausalGoal):
         reward += r_lift
 
         reward /= (reach_mult + grasp_mult + lift_mult)
-
-        # max_dist = 1.1
-        # xy_max_dist = 1.0
-        # z_max_dist = 0.2
-
-        # cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-        # gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        # xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
-        # z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
-        # dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
-        # r_reach = dist_score * reach_mult * gripper_open
-
-        # grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
-        # if grasping_cubeA:
-        #     r_reach += grasp_mult
-
-        # reward += r_reach
-
-        # dist = np.abs(self.goal - cube_pos).sum()
-        # r_lift = (max_dist - dist) / max_dist * lift_mult * grasping_cubeA
-        # reward += r_lift
-
-        # reward /= (reach_mult + grasp_mult + lift_mult)
         return reward
 
     def check_success(self):
@@ -278,7 +255,7 @@ class CausalStack(CausalGoal):
         # lifting is successful when the cube is above the table top by a margin
         cubeA_height = cubeA_pos[2]
         table_height = self.table_offset[2]
-        cubeA_lifted = cubeA_height > table_height + 0.04
+        cubeA_lifted = cubeA_height > table_height + 0.1
         r_lift = lift_mult if cubeA_lifted else 0.0
 
         # Aligning is successful when cubeA is right above cubeB
