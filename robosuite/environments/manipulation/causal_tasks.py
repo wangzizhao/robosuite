@@ -78,6 +78,11 @@ class CausalGoal(Causal):
     def step(self, action):
         next_obs, reward, done, info = super().step(action)
         success = info["success"] = self.check_success()
+
+        if self.sparse_reward:
+            reward = success
+        reward *= self.reward_scale
+
         next_obs["remain_t"] = np.array([1 - float(self.timestep) / self.horizon])
         # done = done or success
         return next_obs, float(reward), bool(done), info

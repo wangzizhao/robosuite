@@ -134,6 +134,7 @@ class Causal(SingleArmEnv):
         use_camera_obs=True,
         use_object_obs=True,
         reward_scale=1.0,
+        sparse_reward=False,
         placement_initializer=None,
         has_renderer=False,
         has_offscreen_renderer=True,
@@ -166,6 +167,7 @@ class Causal(SingleArmEnv):
 
         # reward configuration
         self.reward_scale = reward_scale
+        self.sparse_reward = sparse_reward
 
         # whether to use ground-truth object states
         self.use_object_obs = use_object_obs
@@ -494,6 +496,16 @@ class Causal(SingleArmEnv):
         return obs
 
     def step(self, action):
+        # clip action to avoid that eef goes out of workspace
+        assert action.shape == (4,)
+
+        global_act_low, global_act_high = np.array([-0.3, -0.4, 0.81]), np.array([0.3, 0.4, 1.0])
+        eef_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
+        controller_scale = 0.05
+        action[:3] = np.clip(action[:3],
+                             (global_act_low - eef_pos) / controller_scale,
+                             (global_act_high - eef_pos) / controller_scale)
+
         self.model.mujoco_arena.step_arena(self.sim)
         next_obs, reward, done, info = super().step(action)
         next_obs = self.normalize_obs(next_obs)
