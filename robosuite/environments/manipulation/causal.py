@@ -468,7 +468,7 @@ class Causal(SingleArmEnv):
 
     def normalize_obs(self, obs):
         for k, v in obs.items():
-            if k in ["robot0_eef_pos", "goal"] or (k.startswith(("mov", "unmov", "rand", "marker")) and k.endswith("pos")):
+            if k in ["robot0_eef_pos", "goal_pos"] or (k.startswith(("mov", "unmov", "rand", "marker")) and k.endswith("pos")):
                 if not ((v >= self.global_low) & (v <= self.global_high)).all():
                     print(k, "out of range", v, self.global_low, self.global_high)
                     exit()
