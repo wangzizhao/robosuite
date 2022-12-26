@@ -163,29 +163,32 @@ class CausalPick(CausalGoal):
             - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
         Note that the final reward is normalized.
         """
-        reach_mult = 0.1
-        grasp_mult = 0.35
-        lift_mult = 0.5
-        gripper_open = action[-1] < 0
+        reach_mult = 0.05 # 0.1
+        grasp_mult = 0.4 # 0.35
+        lift_mult = 0.5 # 0.5
+        gripper_open = action[-1] < 0 
+        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
 
         reward = 0
 
-        cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        dist = np.linalg.norm(gripper_site_pos - cube_pos)
+        dist = np.linalg.norm(gripper_site_pos - cube_pos) # dist from gripper to cube 
         r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
+        
+        reward += r_reach
 
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
         if grasping_cubeA:
-            r_reach += grasp_mult
+            reward += grasp_mult
+     
+            dist = np.linalg.norm(cube_pos - self.goal) # the distance we actually care about, cube to goal
+            r_lift = (1 - np.tanh(5.0 * dist)) * lift_mult
+            reward += r_lift
 
-        reward += r_reach
+            # reward /= (reach_mult + grasp_mult + lift_mult)
+            if dist < 0.05: # success
+                reward += 1
 
-        dist = np.linalg.norm(cube_pos - self.goal)
-        r_lift = (1 - np.tanh(5.0 * dist)) * lift_mult
-        reward += r_lift
-
-        reward /= (reach_mult + grasp_mult + lift_mult)
         return reward
 
     def check_success(self):
