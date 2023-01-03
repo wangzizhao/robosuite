@@ -174,7 +174,7 @@ class CausalPick(CausalGoal):
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cube_pos) # dist from gripper to cube 
         r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
-        
+
         reward += r_reach
 
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
@@ -209,50 +209,18 @@ class CausalStack(CausalGoal):
             - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
         Note that the final reward is normalized.
         """
-        reach_mult = 0.1
-        grasp_mult = 0.35
-        lift_mult = 1.0
+        reach_mult = 0.05
+        grasp_mult = 0.4
+        lift_mult = 0.5
         stack_mult = 2.0
         gripper_open = action[-1] < 0
 
         reward = 0
 
-        # xy_max_dist = 1.0
-        # z_max_dist = 0.2
-        # lift_height = 0.95
-
-        # cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-        # unmov_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
-        # gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-
-        # xy_dist = np.abs(gripper_site_pos - cube_pos)[:2].sum()
-        # z_dist = np.abs(gripper_site_pos - cube_pos)[-1]
-        # dist_score = (xy_max_dist - xy_dist + (z_max_dist - z_dist) * (xy_dist < 0.05)) / (xy_max_dist + z_max_dist)
-        # r_reach = dist_score * reach_mult * gripper_open
-
-        # grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
-        # if grasping_cubeA:
-        #     r_reach += grasp_mult
-
-        # reward += r_reach
-
-        # xy_dist = np.abs(unmov_pos - cube_pos)[:2].sum()
-        # z_dist = np.abs(lift_height - cube_pos[-1])
-        # table_height = self.table_offset[2]
-        # cubeA_lifted = cube_pos[-1] > table_height + 0.05
-        # r_lift = (xy_max_dist - xy_dist) * cubeA_lifted / xy_max_dist + lift_height - table_height - z_dist
-        # reward += r_lift * lift_mult * grasping_cubeA
-
-        # cubeA_touching_cubeB = self.check_contact(self.cube, self.unmov_cube)
-        # if not grasping_cubeA and r_lift > 0 and cubeA_touching_cubeB:
-        #     reward += stack_mult
-
-        # reward /= (reach_mult + grasp_mult + lift_mult + stack_mult)
-
         cubeA_pos = self.sim.data.body_xpos[self.cube_body_id]
         cubeB_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        dist = np.linalg.norm(gripper_site_pos - cubeA_pos)
+        dist = np.abs(gripper_site_pos - cubeA_pos).sum()
         r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
 
         # grasping reward
@@ -261,15 +229,16 @@ class CausalStack(CausalGoal):
             r_reach += grasp_mult
 
         # lifting is successful when the cube is above the table top by a margin
+        r_lift = 0
         cubeA_height = cubeA_pos[2]
         table_height = self.table_offset[2]
-        cubeA_lifted = cubeA_height > table_height + 0.1
-        r_lift = lift_mult if cubeA_lifted else 0.0
+        cubeA_lifted = cubeA_height > table_height + 0.02
 
         # Aligning is successful when cubeA is right above cubeB
         if cubeA_lifted:
-            horiz_dist = np.linalg.norm(np.array(cubeA_pos[:2]) - np.array(cubeB_pos[:2]))
-            r_lift += lift_mult * (1 - np.tanh(5.0 * horiz_dist))
+            r_lift += lift_mult
+            dist = np.abs(cubeA_pos[:2] - cubeB_pos[:2]).sum() + np.abs(cubeA_height - (table_height + 0.1))
+            r_lift += lift_mult * (1 - np.tanh(5.0 * dist))
 
         # stacking is successful when the block is lifted and the gripper is not holding the object
         r_stack = 0
@@ -277,7 +246,7 @@ class CausalStack(CausalGoal):
         if not grasping_cubeA and r_lift > 0 and cubeA_touching_cubeB:
             r_stack = stack_mult
 
-        reward = (r_reach + r_lift + r_stack) / (reach_mult + grasp_mult + 2 * lift_mult + stack_mult)
+        reward = r_reach + r_lift + r_stack
 
         return reward
 
