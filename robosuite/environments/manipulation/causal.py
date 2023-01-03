@@ -158,7 +158,7 @@ class Causal(SingleArmEnv):
         cube_y_range=(-0.3, 0.3),
         marker_x_range=(-0.3, 0.3),
         marker_y_range=(-0.3, 0.3),
-        global_range=((-0.5, -0.5, 0.7), (0.5, 0.5, 1.1))
+        normalization_range=((-0.5, -0.5, 0.7), (0.5, 0.5, 1.1))
     ):
         # settings for table top
         self.table_full_size = table_full_size
@@ -186,7 +186,7 @@ class Causal(SingleArmEnv):
         self.marker_y_range = marker_y_range
 
         # global position range for normalization
-        global_low, global_high = global_range
+        global_low, global_high = normalization_range
         self.global_low = np.array(global_low)
         self.global_high = np.array(global_high)
         self.global_mean = (self.global_high + self.global_low) / 2
