@@ -80,7 +80,7 @@ class PotObject(CompositeObject):
             geom_rgbas=None,
             geom_materials=geom_mat,
             geom_frictions=geom_frictions,
-            solref=solref,                                    
+            solref=solref,
             density=density)
 
         add_to_dict(
@@ -93,7 +93,7 @@ class PotObject(CompositeObject):
             geom_rgbas=None,
             geom_materials=geom_mat,
             geom_frictions=geom_frictions,
-            solref=solref,                                    
+            solref=solref,
             density=density)
 
         add_to_dict(
@@ -106,7 +106,7 @@ class PotObject(CompositeObject):
             geom_rgbas=None,
             geom_materials=geom_mat,
             geom_frictions=geom_frictions,
-            solref=solref,                                    
+            solref=solref,
             density=density)
 
         handle_friction = 1.0
@@ -118,7 +118,7 @@ class PotObject(CompositeObject):
                 geom_locations=(0.0, y, 2 * pot_half_height + handle_half_height),
                 geom_quats=T.convert_quat(T.axisangle2quat(np.array([0, 0, 0])), to="wxyz"),
                 geom_sizes=np.array([handle_half_length, side_half_thickness, handle_half_height]),
-                geom_names=f"handle_{direction}_1",
+                geom_names=f"handle_{direction}_0",
                 geom_rgbas=None,
                 geom_materials=geom_mat,
                 geom_frictions=(handle_friction, 0.005, 0.0001),
