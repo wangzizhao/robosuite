@@ -14,7 +14,7 @@ from robosuite.environments.manipulation.two_arm_handover import TwoArmHandover
 from robosuite.environments.manipulation.causal import Causal
 from robosuite.environments.manipulation.causal_tasks import CausalReach, CausalPush, CausalPick, CausalGrasp
 from robosuite.environments.manipulation.tool_use import ToolUse
-from robosuite.environments.manipulation.tool_use_task import ToolUseReach, ToolUsePickCube, ToolUsePickTool, ToolUsePickPlace
+from robosuite.environments.manipulation.tool_use_task import ToolUseReach, ToolUsePickCube, ToolUsePickTool, ToolUsePickPlace, ToolUseSeries
 from robosuite.environments.manipulation.kitchen import Kitchen
 
 from robosuite.environments import ALL_ENVIRONMENTS

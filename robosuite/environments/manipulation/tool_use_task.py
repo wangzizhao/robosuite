@@ -75,7 +75,6 @@ class ToolUseGoal(ToolUse):
         reward *= self.reward_scale
 
         next_obs["remain_t"] = np.array([1 - float(self.timestep) / self.horizon])
-        # done = done or success
         return next_obs, float(reward), bool(done), info
 
     def _setup_observables(self):
@@ -173,10 +172,24 @@ class ToolUsePickTool(ToolUsePick):
         super().__init__(object_name="tool", **kwargs)
 
 
-class ToolUseHook(ToolUseGoal):
-    def __init__(self, **kwargs):
-        assert "z_range" not in kwargs, "invalid set of arguments"
-        super().__init__(z_range=0.02, **kwargs)
+class ToolUseSeries(ToolUseGoal):
+    def __init__(self, terminal_state="POT_LIFTING", **kwargs):
+        super().__init__(**kwargs)
+
+        self.terminal_state = terminal_state
+
+        self.STATES = ["TOOL_GRASPING", "TOOL_MOVING", "PUSHING",
+                       "CUBE_PICKING", "CUBE_MOVING", "POT_PICKING", "POT_LIFTING"]
+        self.state_idx = {state:i for i, state in enumerate(self.STATES)}
+
+        self.state = "TOOL_GRASPING"
+        self.reached_tool_goal = False
+        self.push_x_thre = 0.1
+
+    def reset(self):
+        self.state = "TOOL_GRASPING"
+        self.reached_tool_goal = False
+        return super().reset()
 
     def reward(self, action):
         """
@@ -185,28 +198,191 @@ class ToolUseHook(ToolUseGoal):
             - Pushing: in [0, push_mult], to encourage the arm to push the cube to the goal
         Note that the final reward is normalized.
         """
-        reach_mult = 0.5
-        push_mult = 1.0
 
         reward = 0
 
-        cube_pos = self.sim.data.body_xpos[self.cube_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
-        reward += r_reach
+        cube_pos = self.sim.data.body_xpos[self.cube_id]
+        tool_pos = self.sim.data.body_xpos[self.lshape_tool_id]
+        pot_pos = self.sim.data.body_xpos[self.pot_object_id]
 
-        dist = np.linalg.norm(cube_pos - self.goal)
-        r_push = (1 - np.tanh(5.0 * dist)) * push_mult
-        reward += r_push
+        tool_head_pos = self.sim.data.geom_xpos[self.tool_head_id]
+        pot_handle_pos = self.sim.data.geom_xpos[self.pot_left_handle_id]
 
-        reward /= (reach_mult + push_mult)
+        cube_pos_x = cube_pos[0]
+        cube_pos_z = cube_pos[2]
+        tool_head_pos_x = tool_head_pos[0]
+        table_height = self.table_offset[2]
+
+        tool_head_goal_pos = cube_pos + np.array([0.1, -0.1, 0])
+        tool_head_goal_dist = np.linalg.norm(tool_head_pos - tool_head_goal_pos)
+
+        cube_pot_dist_xy = np.linalg.norm(cube_pos[:2] - pot_pos[:2])
+
+        cube_grasped = tool_grasped = pot_grasped = cube_touching_pot = False
+        cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+        tool_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.lshape_tool)
+        pot_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.pot_object)
+
+        cube_touching_tool = self.check_contact(self.cube, self.lshape_tool)
+        cube_touching_pot = self.check_contact(self.cube, self.pot_object)
+
+        cube_lifted = cube_pos_z > table_height + 0.02
+
+        # print(self.state)
+        # print("eef_pos", gripper_site_pos)
+        # print("cube_pos", cube_pos, cube_grasped)
+        # print("tool_pos", tool_pos, tool_grasped)
+        # print("tool_head_pos", tool_head_pos, tool_grasped)
+        # print("tool_head_goal_pos", tool_head_goal_pos, tool_grasped)
+        # print("pot_pos", pot_pos, pot_grasped)
+        # print("pot_handle_pos", pot_handle_pos, pot_grasped)
+        # print(self.check_success())
+        # print()
+
+        # determine current state
+        if self.state == "TOOL_GRASPING":
+            if cube_pos_x < self.push_x_thre:
+                self.state = "CUBE_PICKING"
+            elif tool_grasped:
+                if self.reached_tool_goal:
+                    self.state = "PUSHING"
+                else:
+                    self.state = "TOOL_MOVING"
+        elif self.state == "TOOL_MOVING":
+            if cube_pos_x < self.push_x_thre:
+                self.state = "CUBE_PICKING"
+            elif not tool_grasped:
+                self.state = "TOOL_GRASPING"
+            elif tool_head_goal_dist < 0.05:
+                self.reached_tool_goal = True
+                self.state = "PUSHING"
+        elif self.state == "PUSHING":
+            if cube_pos_x < self.push_x_thre:
+                self.state = "CUBE_PICKING"
+            elif not tool_grasped:
+                self.state = "TOOL_GRASPING"
+        elif self.state == "CUBE_PICKING":
+            if cube_grasped:
+                self.state = "CUBE_MOVING"
+        elif self.state == "CUBE_MOVING":
+            if cube_touching_pot and cube_lifted and not cube_grasped:
+                self.state = "POT_PICKING"
+            elif not cube_grasped:
+                self.state = "CUBE_PICKING"
+        elif self.state == "POT_PICKING":
+            if pot_grasped:
+                self.state = "POT_LIFTING"
+        elif self.state == "POT_LIFTING":
+            if not pot_grasped:
+                self.state = "POT_PICKING"
+        else:
+            raise NotImplementedError
+
+        if self.state_idx[self.state] > self.state_idx[self.terminal_state]:
+            self.state = self.terminal_state
+
+        tool_reach_mult = 0.05
+        tool_grasp_mult = 0.2
+        tool_mov_mult = 0.2
+        push_mult = 0.2
+        tool_release_mult = 0.4
+        cube_reach_mult = 0.4
+        cube_grasp_mult = 0.6
+        cube_mov_mult = 0.3
+        cube_place_mult = 2.0
+        pot_handle_reach_mult = 0.4
+        pot_handle_grasp_mult = 2.0
+        pot_reach_mult = 0.5
+
+        if self.state == "TOOL_GRASPING":
+            eef_tool_dist = np.linalg.norm(gripper_site_pos - tool_pos)
+            r_eef_reach_tool = (1 - np.tanh(5.0 * eef_tool_dist)) * tool_reach_mult
+            reward = r_eef_reach_tool
+        elif self.state == "TOOL_MOVING":
+            r_tool_reach_goal = (1 - np.tanh(5.0 * tool_head_goal_dist)) * tool_mov_mult
+            reward = tool_reach_mult + tool_grasp_mult + r_tool_reach_goal
+        elif self.state == "PUSHING":
+            reward = tool_reach_mult + tool_grasp_mult + tool_mov_mult
+
+            tool_head_cube_dist = np.linalg.norm(tool_head_pos - cube_pos)
+            r_tool_head_reach_cube = (1 - np.tanh(5.0 * tool_head_cube_dist)) * push_mult
+            reward += r_tool_head_reach_cube
+
+            if cube_touching_tool:
+                cube_to_push_dist = np.maximum(0 - cube_pos_x, 0)
+                r_cube_push = (1 - np.tanh(5.0 * cube_to_push_dist)) * push_mult
+                reward += r_cube_push
+        elif self.state == "CUBE_PICKING":
+            reward = tool_reach_mult + tool_grasp_mult + tool_mov_mult + 2 * push_mult
+            if not tool_grasped:
+                eef_cube_dist = np.linalg.norm(gripper_site_pos - cube_pos)
+                r_eef_reach_cube = (1 - np.tanh(5.0 * eef_cube_dist)) * cube_reach_mult
+                reward += tool_release_mult + r_eef_reach_cube
+        elif self.state == "CUBE_MOVING":
+            reward = tool_reach_mult + tool_grasp_mult + tool_mov_mult + 2 * push_mult + \
+                     tool_release_mult + cube_reach_mult
+
+            cube_pot_horiz_dist = np.linalg.norm(cube_pos[:2] - pot_pos[:2])
+            cube_to_raise_dist = np.maximum(pot_pos[2] + 0.15 - cube_pos_z, 0)
+            r_cube_reach_goal = (1 - np.tanh(5.0 * cube_pot_horiz_dist)) * cube_mov_mult + \
+                                (1 - np.tanh(5.0 * cube_to_raise_dist)) * cube_mov_mult
+            reward += cube_grasp_mult + r_cube_reach_goal
+        elif self.state == "POT_PICKING":
+            reward = tool_reach_mult + tool_grasp_mult + tool_mov_mult + 2 * push_mult + \
+                     tool_release_mult + cube_reach_mult + cube_grasp_mult + 2 * cube_mov_mult
+
+            eef_pot_handle_dist = np.linalg.norm(gripper_site_pos - pot_handle_pos)
+            r_eef_reach_pot_handle = (1 - np.tanh(5.0 * eef_pot_handle_dist)) * pot_handle_reach_mult
+            reward += cube_place_mult + r_eef_reach_pot_handle
+        elif self.state == "POT_LIFTING":
+            reward = tool_reach_mult + tool_grasp_mult + tool_mov_mult + 2 * push_mult + \
+                     tool_release_mult + cube_reach_mult + cube_grasp_mult + 2 * cube_mov_mult + \
+                     cube_place_mult + pot_handle_reach_mult
+
+            pot_goal_dist = np.linalg.norm(pot_pos - self.goal)
+            r_pot_reach_goal = (1 - np.tanh(5.0 * pot_goal_dist)) * pot_reach_mult
+            reward += pot_handle_grasp_mult + r_pot_reach_goal
+
         return reward
 
     def check_success(self):
-        cube_pos = self.sim.data.body_xpos[self.cube_id]
-        dist = np.linalg.norm(cube_pos - self.goal)
-        return dist < 0.05
+        if self.terminal_state == "PUSHING":
+            return cube_pos_x < 0
+        elif self.terminal_state == "CUBE_MOVING":
+            cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+
+            cube_pos = self.sim.data.body_xpos[self.cube_id]
+            pot_pos = self.sim.data.body_xpos[self.pot_object_id]
+            cube_pot_horiz_dist = np.linalg.norm(cube_pos[:2] - pot_pos[:2])
+
+            return cube_grasped and cube_pot_horiz_dist < 0.05
+        elif self.terminal_state == "POT_PICKING":
+            cube_pos = self.sim.data.body_xpos[self.cube_id]
+            cube_pos_z = cube_pos[2]
+            cube_lifted = cube_pos_z > table_height + 0.02
+
+            cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+
+            cube_touching_pot = self.check_contact(self.cube, self.pot_object)
+
+            return not cube_grasped and cube_touching_pot and cube_lifted
+        elif self.terminal_state == "POT_LIFTING":
+            cube_pos = self.sim.data.body_xpos[self.cube_id]
+            cube_pos_z = cube_pos[2]
+            table_height = self.table_offset[2]
+            cube_lifted = cube_pos_z > table_height + 0.02
+
+            cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
+
+            cube_touching_pot = self.check_contact(self.cube, self.pot_object)
+
+            pot_pos = self.sim.data.body_xpos[self.pot_object_id]
+            pot_goal_dist = np.linalg.norm(pot_pos - self.goal)
+
+            return not cube_grasped and cube_touching_pot and cube_lifted and pot_goal_dist < 0.05
+        else:
+            raise NotImplementedError
 
 
 class ToolUsePickPlace(ToolUseGoal):
@@ -225,71 +401,6 @@ class ToolUsePickPlace(ToolUseGoal):
         grasp_mult = 0.4
         lift_mult = 0.5
         place_mult = 2.0
-        gripper_open = action[-1] < 0
-
-        reward = 0
-
-        cube_pos = self.sim.data.body_xpos[self.cube_id]
-        pot_pos = self.sim.data.body_xpos[self.pot_object_id]
-        gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-
-        dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
-
-        # grasping reward
-        cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
-        if cube_grasped:
-            r_reach += grasp_mult
-
-        # lifting is successful when the cube is above the table top by a margin
-        r_lift = 0
-        cube_height = cube_pos[2]
-        table_height = self.table_offset[2]
-        cube_lifted = cube_height > table_height + 0.02
-
-        # Aligning is successful when cube is right above cubeB
-        if cube_grasped:
-            horiz_dist = np.abs(cube_pos[:2] - pot_pos[:2]).sum()
-            vert_dist = np.maximum(table_height + 0.15 - cube_height, 0)
-            r_lift += lift_mult * (2 - np.tanh(5.0 * horiz_dist) - np.tanh(5.0 * vert_dist))
-
-        # stacking is successful when the block is lifted and the gripper is not holding the object
-        r_place = 0
-        cube_touching_pot = self.check_contact(self.cube, self.pot_object)
-        if not cube_grasped and cube_lifted and cube_touching_pot:
-            r_place = place_mult
-
-        reward = r_reach + r_lift + r_place
-
-        return reward
-
-    def check_success(self):
-        cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
-        cube_touching_pot = self.check_contact(self.cube, self.pot_object)
-        cube_pos = self.sim.data.body_xpos[self.cube_id]
-        cube_height = cube_pos[2]
-        table_height = self.table_offset[2]
-        cube_lifted = cube_height > table_height + 0.025
-        return not cube_grasped and cube_touching_pot and cube_lifted
-
-
-class ToolUsePickPlaceLift(ToolUseGoal):
-    def __init__(self, **kwargs):
-        super().__init__(visualize_goal=False, **kwargs)
-
-    def reward(self, action):
-        """
-        Un-normalized summed components if using reward shaping:
-            - Reaching: in [0, reach_mult], to encourage the arm to reach the cube
-            - Grasping: in {0, grasp_mult}, to encourage the arm to grasp the cube
-            - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
-        Note that the final reward is normalized.
-        """
-        reach_mult = 0.05
-        grasp_mult = 0.4
-        lift_mult = 0.5
-        place_mult = 2.0
-        gripper_open = action[-1] < 0
 
         reward = 0
 
