@@ -286,6 +286,9 @@ class ToolUse(SingleArmEnv):
         self.lshape_tool_id = self.sim.model.body_name2id(self.lshape_tool.root_body)
         self.cube_id = self.sim.model.body_name2id(self.cube.root_body)
 
+        self.tool_head_id = self.sim.model.geom_name2id('tool_body_1')
+        self.pot_left_handle_id = self.sim.model.geom_name2id('pot_handle_left_0')
+
         self.obj_body_id = {}
         for name, obj in self.objects.items():
             self.obj_body_id[name] = self.sim.model.body_name2id(obj.root_body)
@@ -307,7 +310,16 @@ class ToolUse(SingleArmEnv):
             def robot0_eef_vel(obs_cache):
                 return self.robots[0]._hand_vel
 
-            sensors, names = [robot0_eef_vel], ["robot0_eef_vel"]
+            @sensor(modality=modality)
+            def tool_head_pos(obs_cache):
+                return self.sim.data.geom_xpos[self.tool_head_id]
+
+            @sensor(modality=modality)
+            def pot_handle_pos(obs_cache):
+                return self.sim.data.geom_xpos[self.pot_left_handle_id]
+
+            sensors = [robot0_eef_vel, tool_head_pos, pot_handle_pos]
+            names = ["robot0_eef_vel", "tool_head_pos", "pot_handle_pos"]
 
             for name in self.objects:
                 obj_sensors, obj_sensor_names = self._create_obj_sensors(name, modality)
@@ -369,18 +381,11 @@ class ToolUse(SingleArmEnv):
         """
         @sensor(modality=modality)
         def obj_pos(obs_cache):
-            return np.array(self.sim.data.body_xpos[self.obj_body_id[obj_name]])
+            return self.sim.data.body_xpos[self.obj_body_id[obj_name]]
 
         @sensor(modality=modality)
         def obj_quat(obs_cache):
             return convert_quat(self.sim.data.body_xquat[self.obj_body_id[obj_name]], to="xyzw")
-
-        @sensor(modality=modality)
-        def object_zrot(obs_cache):
-            quat = convert_quat(np.array(self.sim.data.body_xquat[self.obj_body_id[obj_name]]),
-                                to="xyzw")
-            z = R.from_quat(quat).as_euler('xyz')[2]
-            return np.array([np.sin(z), np.cos(z)]).astype(np.float32)
 
         @sensor(modality=modality)
         def object_grasped(obs_cache):
@@ -439,25 +444,21 @@ class ToolUse(SingleArmEnv):
 
     def normalize_obs(self, obs):
         for k, v in obs.items():
-            if k in ["robot0_eef_pos", "cube_pos", "tool_pos", "pot_pos", "goal_pos"]:
+            if k.endswith("pos") and not k.endswith("qpos"):
                 if not ((v >= self.global_low) & (v <= self.global_high)).all():
                     print(k, "out of range", v, self.global_low, self.global_high)
-                    exit()
                 obs[k] = (v - self.global_mean) / self.global_scale
-            elif k == "robot0_eef_vel":
+            elif k.endswith("vel") and not k.endswith(("qvel", "joint_vel")):
                 if not ((v >= self.eef_vel_low) & (v <= self.eef_vel_high)).all():
                     print(k, "out of range", v)
-                    exit()
                 obs[k] = (v - self.eef_vel_mean) / self.eef_vel_scale
             elif k == "robot0_gripper_qpos":
                 if not ((v >= self.gripper_qpos_low) & (v <= self.gripper_qpos_high)).all():
                     print(k, "out of range", v)
-                    exit()
                 obs[k] = (v - self.gripper_qpos_mean) / self.gripper_qpos_scale
             elif k == "robot0_gripper_qvel":
                 if not ((v >= self.gripper_qvel_low) & (v <= self.gripper_qvel_high)).all():
                     print(k, "out of range", v)
-                    exit()
                 obs[k] = (v - self.gripper_qvel_mean) / self.gripper_qvel_scale
         return obs
 
@@ -481,11 +482,6 @@ class ToolUse(SingleArmEnv):
         next_obs, reward, done, info = super().step(action)
 
         eef_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
-        if not ((eef_pos >= self.global_low) & (eef_pos <= self.global_high)).all():
-            print("eef out of range", eef_pos, self.global_low, self.global_high)
-            print(action)
-            exit()
-
         next_obs = self.normalize_obs(next_obs)
 
         info["success"] = False
