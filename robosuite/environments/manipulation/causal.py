@@ -193,10 +193,10 @@ class Causal(SingleArmEnv):
         self.global_scale = (self.global_high - self.global_low) / 2
 
         # eef velocity range for normalization
-        self.eef_vel_low = np.array([-2, -2, -2])
-        self.eef_vel_high = np.array([2, 2, 2])
-        self.eef_vel_mean = (self.eef_vel_high + self.eef_vel_low) / 2
-        self.eef_vel_scale = (self.eef_vel_high - self.eef_vel_low) / 2
+        self.vel_low = np.array([-2, -2, -2])
+        self.vel_high = np.array([2, 2, 2])
+        self.vel_mean = (self.vel_high + self.vel_low) / 2
+        self.vel_scale = (self.vel_high - self.vel_low) / 2
 
         # gripper angle range for normalization
         self.gripper_qpos_low = np.array([-0.03, -0.03])
@@ -369,6 +369,10 @@ class Causal(SingleArmEnv):
             return np.array(self.sim.data.body_xpos[self.sim.model.body_name2id(object.root_body)])
 
         @sensor(modality=modality)
+        def object_vel(obs_cache):
+            return np.array(self.sim.data.body_xvelp[self.sim.model.body_name2id(object.root_body)])
+
+        @sensor(modality=modality)
         def object_quat(obs_cache):
             quat = convert_quat(np.array(self.sim.data.body_xquat[self.sim.model.body_name2id(object.root_body)]),
                                 to="xyzw")
@@ -398,8 +402,14 @@ class Causal(SingleArmEnv):
             touched = int(self.check_contact(self.robots[0].gripper, object))
             return touched
 
-        sensors = [object_pos, object_quat, object_grasped, object_touched]
-        names = [f"{prefix}{i}_pos", f"{prefix}{i}_quat", f"{prefix}{i}_grasped", f"{prefix}{i}_touched"]
+        # sensors = [object_pos, object_vel, object_quat, object_grasped, object_touched]
+        # names = [f"{prefix}{i}_pos", f"{prefix}{i}_vel", f"{prefix}{i}_quat", f"{prefix}{i}_grasped", f"{prefix}{i}_touched"]
+
+        # sensors = [object_pos, object_vel, object_quat]
+        # names = [f"{prefix}{i}_pos", f"{prefix}{i}_vel", f"{prefix}{i}_quat"]
+
+        sensors = [object_pos, object_grasped, object_quat]
+        names = [f"{prefix}{i}_pos", f"{prefix}{i}_grasped", f"{prefix}{i}_quat"]
 
         return sensors, names
 
@@ -468,25 +478,21 @@ class Causal(SingleArmEnv):
 
     def normalize_obs(self, obs):
         for k, v in obs.items():
-            if k in ["robot0_eef_pos", "goal_pos"] or (k.startswith(("mov", "unmov", "rand", "marker")) and k.endswith("pos")):
+            if k.endswith("pos") and not k.endswith("qpos"):
                 if not ((v >= self.global_low) & (v <= self.global_high)).all():
                     print(k, "out of range", v, self.global_low, self.global_high)
-                    exit()
                 obs[k] = (v - self.global_mean) / self.global_scale
-            elif k == "robot0_eef_vel":
-                if not ((v >= self.eef_vel_low) & (v <= self.eef_vel_high)).all():
+            elif k.endswith("vel") and not k.endswith(("qvel", "joint_vel")):
+                if not ((v >= self.vel_low) & (v <= self.vel_high)).all():
                     print(k, "out of range", v)
-                    exit()
-                obs[k] = (v - self.eef_vel_mean) / self.eef_vel_scale
+                obs[k] = (v - self.vel_mean) / self.vel_scale
             elif k == "robot0_gripper_qpos":
                 if not ((v >= self.gripper_qpos_low) & (v <= self.gripper_qpos_high)).all():
                     print(k, "out of range", v)
-                    exit()
                 obs[k] = (v - self.gripper_qpos_mean) / self.gripper_qpos_scale
             elif k == "robot0_gripper_qvel":
                 if not ((v >= self.gripper_qvel_low) & (v <= self.gripper_qvel_high)).all():
                     print(k, "out of range", v)
-                    exit()
                 obs[k] = (v - self.gripper_qvel_mean) / self.gripper_qvel_scale
         return obs
 
@@ -515,7 +521,7 @@ class Causal(SingleArmEnv):
 
     def obs_delta_range(self):
         max_delta_eef_pos = 0.1 * np.ones(3) / (2 * self.global_scale)
-        max_delta_eef_vel = 2 * np.ones(3) / (2 * self.eef_vel_scale)
+        max_delta_vel = 2 * np.ones(3) / (2 * self.vel_scale)
         max_delta_gripper_qpos = 0.02 * np.ones(2) / (2 * self.gripper_qpos_scale)
         max_delta_gripper_qvel = 0.5 * np.ones(2) / (2 * self.gripper_qvel_scale)
         max_delta_obj_pos = 0.1 * np.ones(3) / (2 * self.global_scale)
@@ -527,21 +533,21 @@ class Causal(SingleArmEnv):
         max_delta_marker_pos = 0.05 * np.ones(3) / (2 * self.global_scale)
 
         obs_delta_range = {"robot0_eef_pos": [-max_delta_eef_pos, max_delta_eef_pos],
-                           "robot0_eef_vel": [-max_delta_eef_vel, max_delta_eef_vel],
+                           "robot0_eef_vel": [-max_delta_vel, max_delta_vel],
                            "robot0_gripper_qpos": [-max_delta_gripper_qpos, max_delta_gripper_qpos],
                            "robot0_gripper_qvel": [-max_delta_gripper_qvel, max_delta_gripper_qvel]}
         for i in range(self.num_movable_objects):
             obs_delta_range["mov{}_pos".format(i)] = [-max_delta_obj_pos, max_delta_obj_pos]
             obs_delta_range["mov{}_quat".format(i)] = [-max_delta_obj_quat, max_delta_obj_quat]
-            obs_delta_range["mov{}_zrot".format(i)] = [-max_delta_obj_zrot, max_delta_obj_zrot]
+            obs_delta_range["mov{}_vel".format(i)] = [-max_delta_vel, max_delta_vel]
         for i in range(self.num_unmovable_objects):
             obs_delta_range["unmov{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
             obs_delta_range["unmov{}_quat".format(i)] = [-max_delta_heavy_obj_quat, max_delta_heavy_obj_quat]
-            obs_delta_range["unmov{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
+            obs_delta_range["unmov{}_vel".format(i)] = [-max_delta_vel, max_delta_vel]
         for i in range(self.num_random_objects):
             obs_delta_range["rand{}_pos".format(i)] = [-max_delta_heavy_obj_pos, max_delta_heavy_obj_pos]
             obs_delta_range["rand{}_quat".format(i)] = [-max_delta_heavy_obj_quat, max_delta_heavy_obj_quat]
-            obs_delta_range["rand{}_zrot".format(i)] = [-max_delta_heavy_obj_zrot, max_delta_heavy_obj_zrot]
+            obs_delta_range["rand{}_vel".format(i)] = [-max_delta_vel, max_delta_vel]
         for i in range(self.num_markers):
             obs_delta_range["marker{}_pos".format(i)] = [-max_delta_marker_pos, max_delta_marker_pos]
         return obs_delta_range
