@@ -10,7 +10,7 @@ class PotObject(CompositeObject):
             name,
             pot_size=(0.06, 0.06, 0.03),
             bottom_half_thickness=0.005,
-            side_half_thickness=0.0075,
+            side_half_thickness=0.01,
             handle_half_height=0.01,
             handle_half_length=0.04,
             density=1000,
