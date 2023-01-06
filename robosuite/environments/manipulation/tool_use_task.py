@@ -5,7 +5,7 @@ from robosuite.utils.observables import Observable, sensor
 
 
 class ToolUseGoal(ToolUse):
-    def __init__(self, xy_range=[0.25, 0.3], z_range=0.2, visualize_goal=True, **kwargs):
+    def __init__(self, xy_range=[0.25, 0.3], z_range=0.15, visualize_goal=True, **kwargs):
         """
         :param table_coverage: x y workspace ranges as a coverage factor of the table
         :param z_range: z workspace range
@@ -184,7 +184,7 @@ class ToolUseSeries(ToolUseGoal):
 
         self.state = "TOOL_GRASPING"
         self.reached_tool_goal = False
-        self.push_x_thre = 0.1
+        self.push_x_thre = 0.0
 
     def reset(self):
         self.state = "TOOL_GRASPING"
@@ -207,7 +207,7 @@ class ToolUseSeries(ToolUseGoal):
         pot_pos = self.sim.data.body_xpos[self.pot_object_id]
 
         tool_head_pos = self.sim.data.geom_xpos[self.tool_head_id]
-        pot_handle_pos = self.sim.data.geom_xpos[self.pot_left_handle_id]
+        pot_handle_pos = self.sim.data.geom_xpos[self.pot_right_handle_id]
 
         cube_pos_x = cube_pos[0]
         cube_pos_z = cube_pos[2]
@@ -228,17 +228,6 @@ class ToolUseSeries(ToolUseGoal):
         cube_touching_pot = self.check_contact(self.cube, self.pot_object)
 
         cube_lifted = cube_pos_z > table_height + 0.02
-
-        # print(self.state)
-        # print("eef_pos", gripper_site_pos)
-        # print("cube_pos", cube_pos, cube_grasped)
-        # print("tool_pos", tool_pos, tool_grasped)
-        # print("tool_head_pos", tool_head_pos, tool_grasped)
-        # print("tool_head_goal_pos", tool_head_goal_pos, tool_grasped)
-        # print("pot_pos", pot_pos, pot_grasped)
-        # print("pot_handle_pos", pot_handle_pos, pot_grasped)
-        # print(self.check_success())
-        # print()
 
         # determine current state
         if self.state == "TOOL_GRASPING":
@@ -266,10 +255,11 @@ class ToolUseSeries(ToolUseGoal):
             if cube_grasped:
                 self.state = "CUBE_MOVING"
         elif self.state == "CUBE_MOVING":
-            if cube_touching_pot and cube_lifted and not cube_grasped:
-                self.state = "POT_PICKING"
-            elif not cube_grasped:
-                self.state = "CUBE_PICKING"
+            if not cube_grasped:
+                if cube_pot_dist_xy < 0.02:
+                    self.state = "POT_PICKING"
+                else:
+                    self.state = "CUBE_PICKING"
         elif self.state == "POT_PICKING":
             if pot_grasped:
                 self.state = "POT_LIFTING"
@@ -290,9 +280,9 @@ class ToolUseSeries(ToolUseGoal):
         cube_reach_mult = 0.4
         cube_grasp_mult = 0.6
         cube_mov_mult = 0.3
-        cube_place_mult = 2.0
+        cube_place_mult = 1.0
         pot_handle_reach_mult = 0.4
-        pot_handle_grasp_mult = 2.0
+        pot_handle_grasp_mult = 1.0
         pot_reach_mult = 0.5
 
         if self.state == "TOOL_GRASPING":
@@ -344,10 +334,14 @@ class ToolUseSeries(ToolUseGoal):
             r_pot_reach_goal = (1 - np.tanh(5.0 * pot_goal_dist)) * pot_reach_mult
             reward += pot_handle_grasp_mult + r_pot_reach_goal
 
+        print(self.state, reward)
+
         return reward
 
     def check_success(self):
         if self.terminal_state == "PUSHING":
+            cube_pos = self.sim.data.body_xpos[self.cube_id]
+            cube_pos_x = cube_pos[0]
             return cube_pos_x < 0
         elif self.terminal_state == "CUBE_MOVING":
             cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)

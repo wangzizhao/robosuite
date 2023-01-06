@@ -287,7 +287,7 @@ class ToolUse(SingleArmEnv):
         self.cube_id = self.sim.model.body_name2id(self.cube.root_body)
 
         self.tool_head_id = self.sim.model.geom_name2id('tool_body_1')
-        self.pot_left_handle_id = self.sim.model.geom_name2id('pot_handle_left_0')
+        self.pot_right_handle_id = self.sim.model.geom_name2id('pot_handle_right_0')
 
         self.obj_body_id = {}
         for name, obj in self.objects.items():
@@ -316,7 +316,7 @@ class ToolUse(SingleArmEnv):
 
             @sensor(modality=modality)
             def pot_handle_pos(obs_cache):
-                return self.sim.data.geom_xpos[self.pot_left_handle_id]
+                return self.sim.data.geom_xpos[self.pot_right_handle_id]
 
             sensors = [robot0_eef_vel, tool_head_pos, pot_handle_pos]
             names = ["robot0_eef_vel", "tool_head_pos", "pot_handle_pos"]
