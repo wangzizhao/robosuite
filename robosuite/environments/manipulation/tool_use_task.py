@@ -334,8 +334,6 @@ class ToolUseSeries(ToolUseGoal):
             r_pot_reach_goal = (1 - np.tanh(5.0 * pot_goal_dist)) * pot_reach_mult
             reward += pot_handle_grasp_mult + r_pot_reach_goal
 
-        print(self.state, reward)
-
         return reward
 
     def check_success(self):
@@ -354,6 +352,7 @@ class ToolUseSeries(ToolUseGoal):
         elif self.terminal_state == "POT_PICKING":
             cube_pos = self.sim.data.body_xpos[self.cube_id]
             cube_pos_z = cube_pos[2]
+            table_height = self.table_offset[2]
             cube_lifted = cube_pos_z > table_height + 0.02
 
             cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)

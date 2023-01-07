@@ -405,9 +405,6 @@ class Causal(SingleArmEnv):
         # sensors = [object_pos, object_vel, object_quat, object_grasped, object_touched]
         # names = [f"{prefix}{i}_pos", f"{prefix}{i}_vel", f"{prefix}{i}_quat", f"{prefix}{i}_grasped", f"{prefix}{i}_touched"]
 
-        # sensors = [object_pos, object_vel, object_quat]
-        # names = [f"{prefix}{i}_pos", f"{prefix}{i}_vel", f"{prefix}{i}_quat"]
-
         sensors = [object_pos, object_grasped, object_quat]
         names = [f"{prefix}{i}_pos", f"{prefix}{i}_grasped", f"{prefix}{i}_quat"]
 

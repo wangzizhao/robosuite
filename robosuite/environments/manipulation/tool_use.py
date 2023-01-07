@@ -384,17 +384,21 @@ class ToolUse(SingleArmEnv):
             return self.sim.data.body_xpos[self.obj_body_id[obj_name]]
 
         @sensor(modality=modality)
+        def obj_vel(obs_cache):
+            return np.array(self.sim.data.body_xvelp[self.obj_body_id[obj_name]])
+
+        @sensor(modality=modality)
         def obj_quat(obs_cache):
             return convert_quat(self.sim.data.body_xquat[self.obj_body_id[obj_name]], to="xyzw")
 
         @sensor(modality=modality)
-        def object_grasped(obs_cache):
+        def obj_grasped(obs_cache):
             grasped = int(self._check_grasp(gripper=self.robots[0].gripper,
                                             object_geoms=[g for g in self.objects[obj_name].contact_geoms]))
             return grasped
 
-        sensors = [obj_pos, obj_quat, object_grasped]
-        names = [f"{obj_name}_pos", f"{obj_name}_quat", f"{obj_name}_grasped"]
+        sensors = [obj_pos, obj_quat, obj_vel, obj_grasped]
+        names = [f"{obj_name}_pos", f"{obj_name}_quat", f"{obj_name}_vel", f"{obj_name}_grasped"]
 
         return sensors, names
 
