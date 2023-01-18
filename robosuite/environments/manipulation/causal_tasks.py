@@ -173,7 +173,7 @@ class CausalPick(CausalGoal):
 
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cube_pos) # dist from gripper to cube 
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(2.0 * dist)) * reach_mult
 
         reward += r_reach
 
@@ -221,7 +221,7 @@ class CausalStack(CausalGoal):
         cubeB_pos = self.sim.data.body_xpos[self.unmov_cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.abs(gripper_site_pos - cubeA_pos).sum()
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(2.0 * dist)) * reach_mult
 
         # grasping reward
         grasping_cubeA = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)

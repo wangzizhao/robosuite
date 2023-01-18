@@ -279,7 +279,7 @@ class ToolUseSeries(ToolUseGoal):
         tool_release_mult = 0.4
         cube_reach_mult = 0.4
         cube_grasp_mult = 0.6
-        cube_mov_mult = 0.3
+        cube_mov_mult = 0.5
         cube_place_mult = 1.0
         pot_handle_reach_mult = 0.4
         pot_handle_grasp_mult = 1.0

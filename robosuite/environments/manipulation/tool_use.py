@@ -224,7 +224,7 @@ class ToolUse(SingleArmEnv):
             name="pot",
         )
         pot_object = self.pot_object.get_obj()
-        pot_object.set("pos", array_to_string((0.0, 0.2, self.table_offset[2] + 0.03)))
+        # pot_object.set("pos", array_to_string((0.0, 0.2, self.table_offset[2] + 0.03)))
 
         self.placement_initializer = SequentialCompositeSampler(name="ObjectSampler")
         
@@ -249,6 +249,20 @@ class ToolUse(SingleArmEnv):
             mujoco_objects=self.lshape_tool,
             x_range=self.tool_x_range,
             y_range=self.tool_y_range,
+            rotation=[0, 0],
+            rotation_axis='z',
+            ensure_object_boundary_in_range=False,
+            ensure_valid_placement=True,
+            reference_pos=self.table_offset,
+            z_offset=0.02,
+        ))
+
+        self.placement_initializer.append_sampler(
+        sampler=UniformRandomSampler(
+            name="ObjectSampler-pot",
+            mujoco_objects=self.pot_object,
+            x_range=[-0.2, 0.0],
+            y_range=[0.0, 0.2],
             rotation=[0, 0],
             rotation_axis='z',
             ensure_object_boundary_in_range=False,
