@@ -163,7 +163,7 @@ class CausalPick(CausalGoal):
             - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
         Note that the final reward is normalized.
         """
-        reach_mult = 0.05 # 0.1
+        reach_mult = 0.2 # 0.1
         grasp_mult = 0.4 # 0.35
         lift_mult = 0.5 # 0.5
         gripper_open = action[-1] < 0 
@@ -209,7 +209,7 @@ class CausalStack(CausalGoal):
             - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
         Note that the final reward is normalized.
         """
-        reach_mult = 0.05
+        reach_mult = 0.2
         grasp_mult = 0.4
         lift_mult = 0.5
         stack_mult = 2.0
