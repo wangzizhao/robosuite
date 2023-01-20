@@ -272,7 +272,7 @@ class ToolUseSeries(ToolUseGoal):
         if self.state_idx[self.state] > self.state_idx[self.terminal_state]:
             self.state = self.terminal_state
 
-        tool_reach_mult = 0.05
+        tool_reach_mult = 0.2
         tool_grasp_mult = 0.2
         tool_mov_mult = 0.2
         push_mult = 0.2
@@ -287,7 +287,7 @@ class ToolUseSeries(ToolUseGoal):
 
         if self.state == "TOOL_GRASPING":
             eef_tool_dist = np.linalg.norm(gripper_site_pos - tool_pos)
-            r_eef_reach_tool = (1 - np.tanh(5.0 * eef_tool_dist)) * tool_reach_mult
+            r_eef_reach_tool = (1 - np.tanh(2.0 * eef_tool_dist)) * tool_reach_mult
             reward = r_eef_reach_tool
         elif self.state == "TOOL_MOVING":
             r_tool_reach_goal = (1 - np.tanh(5.0 * tool_head_goal_dist)) * tool_mov_mult
@@ -390,7 +390,7 @@ class ToolUsePickPlace(ToolUseGoal):
             - Lifting: in [0, lift_mult], to encourage the arm to lift the cube to the goal
         Note that the final reward is normalized.
         """
-        reach_mult = 0.05
+        reach_mult = 0.2
         grasp_mult = 0.4
         lift_mult = 0.5
         place_mult = 2.0
@@ -402,7 +402,7 @@ class ToolUsePickPlace(ToolUseGoal):
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
 
         dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(2.0 * dist)) * reach_mult
 
         # grasping reward
         cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
