@@ -287,7 +287,7 @@ class ToolUseSeries(ToolUseGoal):
 
         if self.state == "TOOL_GRASPING":
             eef_tool_dist = np.linalg.norm(gripper_site_pos - tool_pos)
-            r_eef_reach_tool = (1 - np.tanh(2.0 * eef_tool_dist)) * tool_reach_mult
+            r_eef_reach_tool = (1 - np.tanh(3.0 * eef_tool_dist)) * tool_reach_mult
             reward = r_eef_reach_tool
         elif self.state == "TOOL_MOVING":
             r_tool_reach_goal = (1 - np.tanh(5.0 * tool_head_goal_dist)) * tool_mov_mult
@@ -402,7 +402,7 @@ class ToolUsePickPlace(ToolUseGoal):
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
 
         dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(2.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(3.0 * dist)) * reach_mult
 
         # grasping reward
         cube_grasped = self._check_grasp(gripper=self.robots[0].gripper, object_geoms=self.cube)
