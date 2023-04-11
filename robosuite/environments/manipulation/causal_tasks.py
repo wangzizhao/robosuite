@@ -47,7 +47,7 @@ class CausalGoal(Causal):
             z_range = self.z_range
             self.goal_space_low = np.array([-x_range,
                                             -y_range,
-                                            table_offset_z + 0.01])             # 0.02 is the half-size of the object
+                                            table_offset_z + min(0.1, z_range)])
             self.goal_space_high = np.array([x_range,
                                              y_range,
                                              table_offset_z + z_range])
@@ -138,19 +138,20 @@ class CausalPush(CausalGoal):
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
         gripper_site_pos = self.sim.data.site_xpos[self.robots[0].eef_site_id]
         dist = np.linalg.norm(gripper_site_pos - cube_pos)
-        r_reach = (1 - np.tanh(5.0 * dist)) * reach_mult
+        r_reach = (1 - np.tanh(3.0 * dist)) * reach_mult
         reward += r_reach
 
-        dist = np.linalg.norm(cube_pos - self.goal)
-        r_push = (1 - np.tanh(5.0 * dist)) * push_mult
-        reward += r_push
+        if dist < 0.05:
+            dist = np.linalg.norm(cube_pos[:2] - self.goal[:2])
+            r_push = (1 - np.tanh(5.0 * dist)) * push_mult
+            reward += r_push
 
         reward /= (reach_mult + push_mult)
         return reward
 
     def check_success(self):
         cube_pos = self.sim.data.body_xpos[self.cube_body_id]
-        dist = np.linalg.norm(cube_pos - self.goal)
+        dist = np.linalg.norm(cube_pos[:2] - self.goal[:2])
         return dist < 0.05
 
 
